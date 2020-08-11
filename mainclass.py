@@ -99,6 +99,7 @@ class Library():
         result['boxes'] = self.listBoxes()
         result['libraries'] = self.listLibraries()
         result['publishers'] = self.listPublishers()
+        result['deleted_books'] = self.listDeletedBooks()
         return result
     
     def listAuthors(self):

@@ -131,6 +131,7 @@ class Results(QTableWidget,SuperTranslator):
         QWidget.__init__(self)
         SuperTranslator.__init__(self)
         self.results = results
+        self.deleted_books = [elt[1] for elt in self.results['deleted_books']]
         self.createItems()
         self.initUI(title,authors,publisher,box,library)
         self.retranslateUI()
@@ -174,6 +175,11 @@ class Results(QTableWidget,SuperTranslator):
             book_library = self.results['libraries'][box[2]-1][1]
             firstitem = QTableWidgetItem(book_name)
             firstitem.info = book
+            #is the book deleted?
+            if i+1 in self.deleted_books:
+                book_font = firstitem.font()
+                book_font.setStrikeOut(True)
+                firstitem.setFont(book_font)
             self.items.append((firstitem,) + tuple((QTableWidgetItem(raw_item) for raw_item in (book_authors,book_publisher,book_box_name,book_library,book[4]))))
           
     def fillTable(self,title_,authors_,publisher_,box_,library_,all_info_=""):
