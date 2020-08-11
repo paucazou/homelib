@@ -35,7 +35,7 @@ class Library():
 
     def deleteBook(self,book:int):
         """Tags a book as deleted"""
-        self._cursor.execute("""INSERT INTO deleted_books VALUES""",
+        self._cursor.execute("""INSERT INTO deleted_books VALUES (?,?);""",
                 (self._newID('deleted_books'),book))
         self._db.commit()
     
@@ -107,6 +107,10 @@ class Library():
     
     def listBooks(self):
         self._cursor.execute("""SELECT * FROM books""")
+        return self._cursor.fetchall()
+    
+    def listDeletedBooks(self):
+        self._cursor.execute("""SELECT * FROM deleted_books""")
         return self._cursor.fetchall()
     
     def listBoxes(self):

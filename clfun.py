@@ -13,11 +13,12 @@ library = mainclass.Library(current_dir + 'Library.db')
 
 alphabet = ('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')
 
-def alphaSort(string_list,new_name,research=''):
+def alphaSort(string_list,new_name,research='',new_item=True):
     for elt in sorted(string_list,key=lambda x: x.split(' - ')[1]):
         if research.lower() in elt.lower():
             print(elt)
-    print("{} - New {}".format(len(string_list)+1,new_name))
+    if new_item:
+        print("{} - New {}".format(len(string_list)+1,new_name))
     
 def setFinput(function):
     if sys.platform == 'linux':
@@ -27,6 +28,40 @@ def setFinput(function):
             print(text)
             return input(prompt).replace('\\n','\n')
         return function
+
+
+def list_books():
+    books = []
+    list_books = library.listBooks()
+    list_authors = library.listAuthors()
+    list_publishers = library.listPublishers()
+    for i, book in enumerate(list_books):
+        authors_names = ''
+        for nb in book[2].split('|')[1:]:
+            nb = int(nb) - 1
+            infos = list_authors[nb]
+            authors_names += " {} {}.".format(infos[1],infos[2])
+        publisher_name = list_publishers[book[3]-1][1]
+        books.append("{} - {}. Author(s): {} Publisher: {}.".format(i,book[1],authors_names,publisher_name))
+    return books
+
+
+
+def delete_book():
+    """Tags a book as deleted"""
+    books = list_books()
+    answer = ""
+    while True:
+        alphaSort(books,"",answer,new_item=False)
+        answer = input("Choose the book you want to delete: ")
+        if answer.isnumeric() and int(answer) <= len(books):
+            check = input("Are you sure you want to delete: {}[y/NO]".format(books[int(answer)]))
+            if check == "y":
+                library.deleteBook(int(answer)+1)
+                print("Book deleted")
+            else:
+                print("Canceled")
+            break
 
 def mass_change():
     """Change box of many books"""
