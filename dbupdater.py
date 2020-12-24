@@ -11,7 +11,7 @@ import urllib.request
 # logging
 
 
-server = 'http://palantire:8888/'
+server = 'http://palantir:8888/'
 dev_comp = 'lasna'
 
 main_dir = os.path.dirname(os.path.abspath(__file__)) + '/'
