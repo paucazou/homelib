@@ -4,12 +4,20 @@
 
 from translation import *
 from PyQt5.QtCore import QCoreApplication, Qt
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QCheckBox, QComboBox, QCompleter, QDialog, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QTextEdit, QToolButton, QVBoxLayout, QWidget
+from PyQt5.QtGui import QFont, QKeySequence, QValidator
+from PyQt5.QtWidgets import QCheckBox, QComboBox, QCompleter, QDialog, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QShortcut, QSpinBox, QTextEdit, QToolButton, QVBoxLayout, QWidget
 
 from libpattern import *
 _ = QCoreApplication.translate
 import util
+
+def get_authors(s,db):
+    if s in (db.COLLECTIVE, db.ANONYMOUS):
+        return [s]
+    ids = [int(i) for i in s.split('|')][1:]
+    authors = [db.findAuthor(id) for id in ids]
+    return [f"{elt[-1]} {elt[-2]}" for elt in authors]
+
 
 class Selector(QComboBox,SuperTranslator):
     """Class that displays a combo box
@@ -40,9 +48,9 @@ class Selector(QComboBox,SuperTranslator):
 
     def fillPopup(self):
         self.clear()
-        names = sorted(n for n in self.data.keys() if self.currentText().lower() in n)
+        self.names = sorted(n for n in self.data.keys() if self.currentText().lower() in n)
 
-        for name in names:
+        for name in self.names:
             self.addItem(name)
 
     def __invalid(self):
@@ -50,6 +58,20 @@ class Selector(QComboBox,SuperTranslator):
 
     def __current_index(self):
         return self.data[self.currentText()]
+
+    def __set_current_index(self,i):
+        try:
+            name = [name for name, idx in self.data.items() if i == idx ][0]
+        except IndexError:
+            print(f"No index {i} in combobox")
+            return
+        idx = self.findText(name)
+        self.setCurrentIndex(idx)
+
+    def setCurrentText(self, text):
+        """Valid only if text exists"""
+        idx = self.findText(text)
+        self.setCurrentIndex(idx)
 
     def addElt(self,name,id):
         """Add or update an element"""
@@ -60,7 +82,7 @@ class Selector(QComboBox,SuperTranslator):
         self.setCurrentText(old_text)
 
     invalid = property(__invalid)
-    index = property(__current_index)
+    index = property(__current_index,__set_current_index)
 
 class Dialog(QDialog,SuperTranslator):
     """Base class for every dialog box"""
@@ -92,6 +114,23 @@ class Dialog(QDialog,SuperTranslator):
     def saveData(self):
         self.updated = True
         self.close()
+
+class AlphabeticSpinBox(QSpinBox):
+    def __init__(self):
+        super().__init__()
+        self.setMinimum(ord('A'))
+        self.setMaximum(ord('Z'))
+
+    def textFromValue(self, val : int) -> str:
+        return chr(val)
+
+    def valueFromText(self, val : str) -> int:
+        return ord(val)
+
+    def validate(self, text : str, pos : int) -> QValidator.State:
+        letters = [chr(letter) for letter in range(ord('A'),ord('Z')+1)]
+        state = QValidator.Acceptable if text in letters else QValidator.Invalid
+        return state, text, pos
 
 class NewAuthorWindow(Dialog):
     """Create a dialog window to enter or change an author"""
@@ -193,6 +232,26 @@ class NewLibWindow(Dialog):
         self.name_edit = QLineEdit()
         self.names_layout.addWidget(self.name_edit)
         self.layout.addLayout(self.names_layout)
+
+        self.place_layout = QHBoxLayout()
+        self.place_edit = QLineEdit()
+        self.place_layout.addWidget(self.place_edit)
+
+        self.numbers_layout = QHBoxLayout()
+        self.columns_edit = QSpinBox()
+        self.lines_edit = QSpinBox()
+        self.columns_label = QLabel("Columns")
+        self.lines_label = QLabel ("Lines")
+        self.numbers_layout.addWidget(self.columns_label)
+        self.numbers_layout.addWidget(self.columns_edit)
+        self.numbers_layout.addWidget(self.lines_label)
+        self.numbers_layout.addWidget(self.lines_edit)
+
+        self.columns_edit.setMinimum(1)
+        self.lines_edit.setMinimum(1)
+
+        self.layout.addLayout(self.place_layout)
+        self.layout.addLayout(self.numbers_layout)
         self.layout.addLayout(self.buttons_layout)
 
         self.setLayout(self.layout)
@@ -202,13 +261,16 @@ class NewLibWindow(Dialog):
         self.setWindowTitle(title)
 
         self.name_edit.setPlaceholderText(_("NewLibWindow","Library's name"))
+        self.place_edit.setPlaceholderText(_("NewLibWindow","Library's location"))
+        self.columns_label.setText(_("NewLibWindow","Columns"))
+        self.lines_label.setText(_("NewLibWindow","Lines"))
 
     def saveData(self):
-        if self.name_edit.text().isspace() or self.name_edit.text() == "":
+        if self.name_edit.text().isspace() or self.name_edit.text() == "" or self.place_edit.text().isspace() or self.place_edit.text() == "":
             return
 
         if not self.update:
-            self.db.addLibrary(self.name_edit.text())
+            self.db.addLibrary(self.name_edit.text(),self.place_edit.text(), self.lines_edit.value(), self.columns_edit.value())
 
         Dialog.saveData(self)
 
@@ -238,8 +300,21 @@ class NewBoxWindow(Dialog):
         self.lib_layout.addWidget(self.lib_combo)
         self.lib_layout.addWidget(self.new_lib_button)
 
+        self.numbers_layout = QHBoxLayout()
+        self.columns_edit = AlphabeticSpinBox()
+        self.lines_edit = QSpinBox()
+        self.columns_label = QLabel("Column")
+        self.lines_label = QLabel ("Line")
+        self.numbers_layout.addWidget(self.columns_label)
+        self.numbers_layout.addWidget(self.columns_edit)
+        self.numbers_layout.addWidget(self.lines_label)
+        self.numbers_layout.addWidget(self.lines_edit)
+        self.lines_edit.setMinimum(1)
+
+
         self.layout.addLayout(self.name_layout)
         self.layout.addLayout(self.lib_layout)
+        self.layout.addLayout(self.numbers_layout)
         self.layout.addLayout(self.buttons_layout)
 
         self.setLayout(self.layout)
@@ -255,33 +330,82 @@ class NewBoxWindow(Dialog):
         self.setWindowTitle(title)
         self.new_lib_button.setText(_("NewBoxWindow","New library"))
         self.name_edit.setPlaceholderText(_("NewBoxWindow","New box"))
+        self.columns_label.setText(_("NewBoxWindow","Column"))
+        self.lines_label.setText(_("NewBoxWindow","Line"))
+
+        # errors
+        self.invalid_lib = _("NewBoxWindow","Invalid library")
+        self.invalid_line = _("NewBoxWindow","Invalid line")
+        self.invalid_column = _("NewBoxWindow","Invalid column")
 
     def saveData(self):
         if self.name_edit.text().isspace() or self.name_edit.text() == "":
             return
 
         if not self.update:
-            self.db.addBox(self.name_edit.text())
+
+            if self.lib_combo.invalid:
+                return self.abort_save(self.invalid_lib,self.lib_combo)
+            lib = self.lib_combo.index
+            line = self.lines_edit.value()
+            column = self.columns_edit.text()
+            self.db.addBox(self.name_edit.text(), lib, line, column)
 
         Dialog.saveData(self)
+
+    def abort_save(self,text,widget_focus):
+        self.message_warning.setText(text)
+        self.message_warning.exec()
 
 
 class NewBookWindow(Dialog):
     """Create a dialog window to enter
     or change a book in the database"""
-    def __init__(self,update,db,title="",authors="",box="",library="",details=""):
+    def __init__(self,update,db,**kw):
+        #title="",authors="",box="",library="",details="",id=None):
         Dialog.__init__(self)
         self.update=update
+        self._generate_authors_bool = False
+        if self.update:
+            self.base_data = kw
         self.db = db
         self.authors_widgets = []
         self.authors_activated = True
         self.get_authors_data()
+        self.previous_pattern_widget = None
 
         self.initUI()
         self.retranslateUI()
-        self.fill_data()
         self.define_signals_slots()
+        self.fill_base_data()
+        if not self._generate_authors_bool:
+            self.generate_author()
         self.exec()
+
+    def fill_base_data(self):
+        """Fill the boxes with
+        base data before updating them"""
+        if not self.update:
+            return
+        print(self.base_data)
+        self._generate_authors_bool = True
+
+        self.title_edit.setText(self.base_data['title'])
+        self.box_combo.index = self.base_data['box']
+        self.publisher_combo.index = self.base_data['publisher']
+        self.details_edit.setText(self.base_data['details'])
+        # authors
+        authors = get_authors(self.base_data['authors'],self.db)
+        if len(authors) == 1:
+            a = authors[0]
+            if a == self.db.COLLECTIVE:
+                self.collective_checkbox.setChecked(True)
+            elif a == self.db.ANONYMOUS:
+                self.anonymous_checkbox.setChecked(True)
+        for a in authors:
+            self.generate_author()
+            w = self.authors_widgets[-1].itemAt(0).widget()
+            w.setCurrentText(a)
 
     def define_signals_slots(self):
         self.anonymous_checkbox.stateChanged.connect(self.toggle_authors)
@@ -292,6 +416,12 @@ class NewBookWindow(Dialog):
         self.new_author_button.clicked.connect(self.new_author)
         self.new_publisher_button.clicked.connect(self.new_publisher)
         self.new_box_button.clicked.connect(self.new_box)
+        # shortcuts
+        #TODO does not work if focus on a textfield
+        self.new_author_shortcut.activated.connect(self.new_author)
+        self.new_publisher_shortcut.activated.connect(self.new_publisher)
+        self.new_box_shortcut.activated.connect(self.new_box)
+        self.generate_author_shortcut.activated.connect(self.generate_author)
 
     def get_authors_data(self):
         raw = self.db.listAuthors()
@@ -333,7 +463,7 @@ class NewBookWindow(Dialog):
             self.message_warning.exec()
             self.title_edit.setFocus(Qt.OtherFocusReason)
             return
-        # check wether the inpurt of publisher, authors and box is valid !
+        # check wether the input of publisher, authors and box is valid !
 
         authors = self.getAuthorsFromData()
         if not authors:
@@ -350,6 +480,8 @@ class NewBookWindow(Dialog):
 
         if not self.update:
             self.db.addBook(title,authors,publisher,more,box)
+        else:
+            self.db.updateBook(self.base_data['id'],title, authors, publisher,more,box)
 
         Dialog.saveData(self)
 
@@ -373,7 +505,7 @@ class NewBookWindow(Dialog):
         return f"{len(self.authors_widgets)}|{authors_ids}"
 
 
-    def fill_data(self):
+    def fill_data(self): # DEPRECATED
         """Fill the combo boxes with data"""
         # authors
         self.generate_author()
@@ -464,11 +596,13 @@ class NewBookWindow(Dialog):
         self.anonymous_checkbox = QCheckBox("Anonymous")
         self.collective_checkbox = QCheckBox("Collective")
         self.new_author_button = QPushButton("New author")
+        self.new_author_shortcut = QShortcut(QKeySequence("Ctrl+R"),self.new_author_button)
         self.authors_sub_layout = QHBoxLayout()
         self.authors_sub_layout.addWidget(self.anonymous_checkbox)
         self.authors_sub_layout.addWidget(self.collective_checkbox)
         self.authors_sub_layout.addWidget(self.new_author_button)
         self.author_layout.addLayout(self.authors_sub_layout)
+        self.generate_author_shortcut = QShortcut(QKeySequence('Ctrl+G'),self)
 
         self.author_group.setLayout(self.author_layout)
 
@@ -480,6 +614,7 @@ class NewBookWindow(Dialog):
         self.publisher_layout.addWidget(self.publisher_combo)
 
         self.new_publisher_button = QPushButton("New Publisher")
+        self.new_publisher_shortcut = QShortcut(QKeySequence("Ctrl+S"),self)
         self.publisher_layout.addWidget(self.new_publisher_button)
         self.publisher_group.setLayout(self.publisher_layout)
 
@@ -491,10 +626,13 @@ class NewBookWindow(Dialog):
         self.box_layout.addWidget(self.box_combo)
 
         self.preview_box_button = QPushButton("Preview")
+        self.preview_box_shortcut = QShortcut(QKeySequence("Alt+W"),self)
         self.box_layout.addWidget(self.preview_box_button)
+        self.preview_box_shortcut.activated.connect(self.preview_box)
         self.preview_box_button.clicked.connect(self.preview_box)
 
         self.new_box_button = QPushButton("New Box")
+        self.new_box_shortcut = QShortcut(QKeySequence("Ctrl+B"),self)
         self.box_layout.addWidget(self.new_box_button)
         self.box_group.setLayout(self.box_layout)
 
@@ -523,15 +661,32 @@ class NewBookWindow(Dialog):
 
 
     def preview_box(self):
+        # check that a box is not already on screen
+        if self.previous_pattern_widget is not None:
+            self.layout.removeWidget(self.previous_pattern_widget)
+
         if self.box_combo.invalid:
             self.message_warning.setText(self.invalid_box)
             self.message_warning.exec()
             self.box_combo.setFocus(Qt.OtherFocusReason)
             return
 
-        pattern = Pattern(1,1,1,1,
-                ["Name"],"A lib","A place",self)
+        boxes = self.db.listBoxes()
+        box = boxes[self.box_combo.index-1]
+        lib = self.db.listLibraries()[box[2]-1]
+        boxnames = []
+        for line in range (lib[3]+1):
+            boxnames.append(['']*lib[4])
+
+        for temp_box in boxes:
+            if temp_box[2] == box[2]:
+                boxnames[temp_box[3]-1][ord(temp_box[4]) - ord('A')] = temp_box[1]
+
+        pattern = Pattern(lib[-2], lib[-1],
+                box[-2], ord(box[-1]) - ord('A')+1,
+                boxnames,lib[1],lib[2],self)
         self.layout.addWidget(pattern)
+        self.previous_pattern_widget = pattern
 
     def set_tab_order(self):
         aw = self.authors_widgets
@@ -577,6 +732,7 @@ class NewBookWindow(Dialog):
         self.preview_box_button.setText(_("NewBookWindow","Preview box"))
         self.collective_checkbox.setText(_("NewBookWindow","Collective"))
         self.anonymous_checkbox.setText(_("NewBookWindow","Anonymous"))
+        # SHORTCUTS TODO
 
         # messages warnings
         self.no_title = _("NewBookWindow","No title entered")

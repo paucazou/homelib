@@ -13,7 +13,8 @@ import dbupdater
 from mainclass import Library
 from newbook import NewBookWindow
 from PyQt5.QtCore import pyqtSignal, QCoreApplication, QLocale, Qt, QTranslator
-from PyQt5.QtWidgets import QApplication, QDockWidget, QGroupBox, QHBoxLayout, QMainWindow, QLineEdit, QPushButton, QStyle, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt5.QtGui import QKeySequence
+from PyQt5.QtWidgets import QApplication, QDockWidget, QGroupBox, QHBoxLayout, QMainWindow, QLineEdit, QPushButton, QShortcut, QStyle, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 from libpattern import *
 from translation import *
 
@@ -45,15 +46,18 @@ class Main(QMainWindow,SuperTranslator):
         self.W.searchwidget = SearchWidget()
         self.rightDock.setWidget(self.W.searchwidget)
         self.addDockWidget(Qt.RightDockWidgetArea,self.rightDock)
-        self.W.results = Results(self.results)
+        self.W.results = Results(self.results, self)
         self.setCentralWidget(self.W.results)
         self.setGeometry(QStyle.alignedRect(Qt.LeftToRight,Qt.AlignCenter,self.size(),GuiApp.desktop().availableGeometry()))
+        self.exit_shortcut = QShortcut(QKeySequence("Ctrl+Q"),self)
+        self.exit_shortcut_esc = QShortcut(QKeySequence("Esc"),self)
         self.show()
         
     def retranslateUI(self):
         SuperTranslator.retranslateUI(self)
         self.setWindowTitle(_("Main","HomeLib"))
         self.rightDock.setWindowTitle(_('Main','Research'))
+        # TODO exit_shortcut
         
     def defineSignals(self):
         self.W.searchwidget.title.textEdited.connect(self.changeResults) # if too slow : returnPressed
@@ -64,8 +68,11 @@ class Main(QMainWindow,SuperTranslator):
         self.W.searchwidget.all.textEdited.connect(self.changeResults)
         self.W.searchwidget.reset_button.clicked.connect(self.resetResults)
         self.W.searchwidget.new_button.clicked.connect(self.addBook)
+        self.W.searchwidget.new_button_shortcut.activated.connect(self.addBook)
         self.W.results.cellPressed.connect(self.libInfo)
         self.resized.connect(self.resizeThings)
+        self.exit_shortcut.activated.connect(self.close)
+        self.exit_shortcut_esc.activated.connect(self.close)
         
     def resizeEvent(self,event):
         self.resized.emit()
@@ -89,9 +96,6 @@ class Main(QMainWindow,SuperTranslator):
             self.changeResults()
 
 
-    def changeBook(self,*args):
-        """Change the content of the book"""
-        NewBookWindow(True,self.db,*args)
         
     def changeResults(self,*args):
         self.W.results.fillTable(self.W.searchwidget.title.text().lower(),
@@ -127,14 +131,17 @@ class Main(QMainWindow,SuperTranslator):
         
         
 class Results(QTableWidget,SuperTranslator):
-    def __init__(self,results,title='',authors='',publisher='',box='',library=''):
+    def __init__(self,results, parent,title='',authors='',publisher='',box='',library=''):
         QWidget.__init__(self)
         SuperTranslator.__init__(self)
         self.results = results
+        self.parent = parent
+        self.db = parent.db
         self.deleted_books = [elt[1] for elt in self.results['deleted_books']]
         self.createItems()
         self.initUI(title,authors,publisher,box,library)
         self.retranslateUI()
+        self.itemDoubleClicked.connect(self.modify_item)
         #self.clearContents()
     
     def initUI(self,title_,authors_,publisher_,box_,library_):
@@ -142,6 +149,28 @@ class Results(QTableWidget,SuperTranslator):
         self.setRowCount(len(self.results['books']))
         self.fillTable(title_,authors_,publisher_,box_,library_)
         self.horizontalHeader().sectionClicked.connect(self.resizeRows)
+
+    def modify_item(self,item):
+        try:
+            print(item.info)
+        except AttributeError:
+            print(f"{item} has no info")
+            return
+
+        modified = NewBookWindow(
+                update=True, 
+                db=self.db,
+                title = item.info[1],
+                authors = item.info[2],
+                publisher = item.info[3],
+                box = item.info[-1],
+                details = item.info[4],
+                id = item.info[0])
+
+        if modified.updated:
+            self.results = self.db.listAll()
+            self.createItems()
+            self.parent.changeResults()
         
     def resizeRows(self,index):
         for rownb in range(self.rowCount()):
@@ -181,6 +210,7 @@ class Results(QTableWidget,SuperTranslator):
                 book_font.setStrikeOut(True)
                 firstitem.setFont(book_font)
             self.items.append((firstitem,) + tuple((QTableWidgetItem(raw_item) for raw_item in (book_authors,book_publisher,book_box_name,book_library,book[4]))))
+            # TODO ajouter infos pour l'auteur, la bibliothèque et l'étagère afin de pouvoir les modifier
           
     def fillTable(self,title_,authors_,publisher_,box_,library_,all_info_=""):
         title_, authors_, publisher_, box_, library_, all_info_ = (x.lower() for x in (title_, authors_, publisher_, box_, library_, all_info_))
@@ -262,7 +292,8 @@ class SearchWidget(QWidget,SuperTranslator):
         self.all_group.setLayout(self.all_layout)
         
         self.reset_button = QPushButton('Reset')
-        self.new_button = QPushButton('New')
+        self.new_button = QPushButton('Ne&w')
+        self.new_button_shortcut = QShortcut(QKeySequence("Ctrl+N"), self.new_button)
         self.resetnnew_layout = QHBoxLayout()
 
         self.resetnnew_layout.addWidget(self.reset_button)
@@ -294,4 +325,5 @@ class SearchWidget(QWidget,SuperTranslator):
         self.all_group.setTitle(_("SearchWidget","In all fields"))
         self.reset_button.setText(_("SearchWidget","Reset results"))
         self.new_button.setText(_("SearchWidget","New book"))
+        # TODO new button shortcut
         
