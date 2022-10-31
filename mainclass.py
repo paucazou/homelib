@@ -69,7 +69,7 @@ class Library():
 
     def findAuthor(self, id):
         self._cursor.execute("""SELECT * FROM authors WHERE id = ?;""",(id,))
-        return self._cursor.fetchone()[0]
+        return self._cursor.fetchone()
     
     def findAuthorID(self,christian_name,last_name):
         self._cursor.execute("""SELECT id FROM authors WHERE christian_name = ? AND last_name = ?;""",(christian_name,last_name))

@@ -12,7 +12,7 @@ import urllib.request
 
 
 server = 'http://palantir:8888/'
-dev_comp = 'lasna'
+dev_comp = 'zenon'
 
 main_dir = os.path.dirname(os.path.abspath(__file__)) + '/'
 library = main_dir + 'Library.db'
