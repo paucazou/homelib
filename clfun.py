@@ -99,8 +99,42 @@ def mass_change():
     for j in books_selected:
         library.updateBoxOfBook(j+1,box)     
 
+def _select_box(string_to_print=' box'):
+    answer = 'no'
+    while answer != "yes":
+        list_boxes = library.listBoxes()
+        choices = [ "{} - {}".format(i+1,elt[1]) for i, elt in enumerate(list_boxes)]
+        box = limit_or_choose(choices,string_to_print)
+        list_boxes = library.listBoxes()
+        box_name = list_boxes[box-1][1] 
+        answer = finput("Box chosen: {}. Continue?([no]/yes)".format(box_name))
+    return box_name 
+
+def switch_boxes():
+    """Change the box of books of a specified box"""
+    first_box = _select_box(' box from')
+    second_box = _select_box(' box to')
+    if first_box == second_box:
+        input(f"You selected the same box: {first_box}. Press any key to continue...")
+        return switch_boxes()
+    else:
+        answer = input(f"Books from {first_box} will go to {second_box}. Are you sure?[NO/yes]")
+        if answer.lower() != "yes":
+            input("Abandon. Press any key")
+            return switch_boxes()
+
+    # select books and update
+    books_selected = library.booksByBox(box_name=first_box)
+    for b in books_selected:
+        library.updateBoxOfBook(b[0], second_box)
+    print("Library updated")
+
+
+
+
+
 def correct():
-    for i, elt in enumerate(('Books','Authors','Publishers','Boxes','Libraries','Boxes: mass')):
+    for i, elt in enumerate(('Books','Authors','Publishers','Boxes','Libraries','Boxes: mass', 'Switch boxes')):
         print('{} - {}'.format(i,elt))
     answer=input("Choose which kind of items you want to correct : ")
     
@@ -152,6 +186,8 @@ def correct():
 
     elif answer == '5':
         mass_change()
+    elif answer == '6':
+        switch_boxes()
     
 def drawLib(lines, columns, sline=-1, scolumn=-1):
     """All args are integers. sline & scolumn represents the
