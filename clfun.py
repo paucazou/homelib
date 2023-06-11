@@ -108,12 +108,12 @@ def _select_box(string_to_print=' box'):
         list_boxes = library.listBoxes()
         box_name = list_boxes[box-1][1] 
         answer = finput("Box chosen: {}. Continue?([no]/yes)".format(box_name))
-    return box_name 
+    return box, box_name
 
 def switch_boxes():
     """Change the box of books of a specified box"""
-    first_box = _select_box(' box from')
-    second_box = _select_box(' box to')
+    fbox, first_box = _select_box(' box from')
+    sbox, second_box = _select_box(' box to')
     if first_box == second_box:
         input(f"You selected the same box: {first_box}. Press any key to continue...")
         return switch_boxes()
@@ -126,7 +126,7 @@ def switch_boxes():
     # select books and update
     books_selected = library.booksByBox(box_name=first_box)
     for b in books_selected:
-        library.updateBoxOfBook(b[0], second_box)
+        library.updateBoxOfBook(b[0], sbox)
     print("Library updated")
 
 
