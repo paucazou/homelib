@@ -51,6 +51,8 @@ class Main(QMainWindow,SuperTranslator):
         self.setGeometry(QStyle.alignedRect(Qt.LeftToRight,Qt.AlignCenter,self.size(),GuiApp.desktop().availableGeometry()))
         self.exit_shortcut = QShortcut(QKeySequence("Ctrl+Q"),self)
         self.exit_shortcut_esc = QShortcut(QKeySequence("Esc"),self)
+        self.maximize_shortcut = QShortcut(QKeySequence("F11"),self)
+        self.is_maximized = False
         self.show()
         
     def retranslateUI(self):
@@ -73,7 +75,13 @@ class Main(QMainWindow,SuperTranslator):
         self.resized.connect(self.resizeThings)
         self.exit_shortcut.activated.connect(self.close)
         self.exit_shortcut_esc.activated.connect(self.close)
+        self.maximize_shortcut.activated.connect(self.toggle_size)
         
+    def toggle_size(self):
+        self.showNormal() if self.is_maximized else self.showMaximized()
+        self.is_maximized = not self.is_maximized
+        
+
     def resizeEvent(self,event):
         self.resized.emit()
         return super(Main, self).resizeEvent(event)
