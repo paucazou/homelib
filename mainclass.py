@@ -133,6 +133,12 @@ class Library():
     
     def updateBook(self,id,name,author,publisher,more,box):
         """publisher and box are integers"""
+        # first, a backup of the previous data
+        self._cursor.execute("""SELECT * FROM books where id = ?;""",(id,));
+        backup = self._cursor.fetchone()
+        self._cursor.execute("""INSERT INTO books_backup VALUES (?,?,?,?,?,?);""",
+                             (id,*backup[1:]))
+        # update
         self._cursor.execute("""UPDATE books SET name = ?, author = ?, publisher = ?, more = ?, box = ? WHERE id = ? """,
                 (name,author,publisher,more,box,id))
         self._db.commit()
