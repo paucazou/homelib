@@ -324,6 +324,7 @@ class NewBoxWindow(Dialog):
         if n.updated:
             lib = self.db.listLibraries()[-1]
             self.lib_combo.addElt(lib[1],lib[0])
+        self.lib_combo.index = lib[0]
 
     def retranslateUI(self):
         title = _("NewBoxWindow","Update box") if self.update else _("NewBoxWindow","New box")
@@ -444,12 +445,15 @@ class NewBookWindow(Dialog):
             publisher = self.db.listPublishers()[-1]
             print(publisher)
             self.publisher_combo.addElt(publisher[1],publisher[0])
+        
+        self.publisher_combo.index = publisher[0]
 
     def new_box(self):
         n = NewBoxWindow(False,self.db)
         if n.updated:
             box = self.db.listBoxes()[-1]
             self.box_combo.addElt(box[1],box[0])
+        self.box_combo.index = box[0]
 
     def abort_save(self,text,widget_focus):
         self.message_warning.setText(text)
