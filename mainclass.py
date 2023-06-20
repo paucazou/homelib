@@ -125,40 +125,54 @@ class Library():
     def listPublishers(self):
         self._cursor.execute("""SELECT * FROM publisher""")
         return self._cursor.fetchall()
+
+    def backup(self, id, table_name):
+        """Makes a backup of id in the table_name to the table_backup"""
+        if ";" in table_name:
+            raise ValueError(f"{table_name} is not a valid identifier")
+        self._cursor.execute(f"""SELECT * FROM {table_name} where id = ?;""",(id,));
+        backup = self._cursor.fetchone()
+        table_backup = f"{table_name}_backup"
+        elts = "?,"*(len(backup)-1)
+        self._cursor.execute(f"""INSERT INTO {table_backup} VALUES ({elts}?);""",
+                             (id,*backup[1:]))
+        self._db.commit()
     
     def updateAuthor(self,id,christian_name,last_name):
+        self.backup(id, "authors")
         self._cursor.execute("""UPDATE authors SET christian_name = ?, last_name = ? WHERE id = ?""",
                              (christian_name,last_name,id))
         self._db.commit()
+
+
     
     def updateBook(self,id,name,author,publisher,more,box):
         """publisher and box are integers"""
-        # first, a backup of the previous data
-        self._cursor.execute("""SELECT * FROM books where id = ?;""",(id,));
-        backup = self._cursor.fetchone()
-        self._cursor.execute("""INSERT INTO books_backup VALUES (?,?,?,?,?,?);""",
-                             (id,*backup[1:]))
-        # update
+        self.backup(id, "books")
         self._cursor.execute("""UPDATE books SET name = ?, author = ?, publisher = ?, more = ?, box = ? WHERE id = ? """,
                 (name,author,publisher,more,box,id))
         self._db.commit()
 
     def updateBoxOfBook(self,id,box):
         """args are int"""
+        self.backup(id, "books")
         self._cursor.execute("""UPDATE books SET box = ? WHERE id = ?""",(box,id))
         self._db.commit()
         
     def updateBox(self,id,name,library_id,line,column):
+        self.backup(id, "boxes")
         self._cursor.execute("""UPDATE boxes SET name = ?, library = ?, line = ?, column = ? WHERE id = ?""",
                              (name,library_id,line,column,id))
         self._db.commit()
         
     def updateLibrary(self,id,name,place,lines,columns):
+        self.backup(id, "libraries")
         self._cursor.execute("""UPDATE libraries SET name = ?, place = ?, lines = ?, columns = ? WHERE id = ?""",
                              (name,place,lines, columns,id))
         self._db.commit()
         
     def updatePublisher(self,id,name):
+        self.backup(id, "publisher")
         self._cursor.execute("""UPDATE publisher SET name = ? WHERE id = ? """,(name,id))
         self._db.commit()
 
