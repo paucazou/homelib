@@ -93,3 +93,6 @@ def volumes_nb_in_db(db: str) -> int:
     for b in books:
         nb += volumes_nb(b[4])
     return nb
+
+if __name__ == "__main__":
+    volumes_nb_in_db("Library.db")
