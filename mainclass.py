@@ -86,6 +86,10 @@ class Library():
     def findLibraryID(self,name):
         self._cursor.execute("""SELECT id FROM libraries WHERE name = ?;""",(name,))
         return self._cursor.fetchone()[0]
+
+    def findLibraryName(self, id):
+        self._cursor.execute("""SELECT name FROM libraries WHERE id = ?;""",(id,))
+        return self._cursor.fetchone()[0]
     
     def findPublisherID(self,name):
         self._cursor.execute("""SELECT id FROM publisher WHERE name = ?;""",(name,))
