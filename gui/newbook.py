@@ -624,7 +624,8 @@ class NewBookWindow(Dialog):
 
         # Box choice
         self.box_group = QGroupBox("Box")
-        box_data = {p[1]:p[0] for p in self.db.listBoxes()}
+        box_data = {f"{p[1]} - {self.db.findLibraryName(p[2])}":p[0]
+                    for p in self.db.listBoxes()}
         self.box_combo = Selector(box_data)
         self.box_layout = QHBoxLayout()
         self.box_layout.addWidget(self.box_combo)
