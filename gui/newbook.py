@@ -97,6 +97,7 @@ class Dialog(QDialog,SuperTranslator):
         self.cancel = QPushButton("Cancel")
         #self.cancel.setDefault(False)
         self.ok = QPushButton("OK")
+        self.ok_shortcut = QShortcut(QKeySequence(Qt.Key_Return), self.ok)
         self.buttons_layout.addStretch(1)
         self.buttons_layout.addWidget(self.cancel)
         self.buttons_layout.addWidget(self.ok)
@@ -104,6 +105,7 @@ class Dialog(QDialog,SuperTranslator):
         self.ok.setDefault(True)
 
         self.ok.clicked.connect(self.saveData)
+        self.ok_shortcut.activated.connect(self.saveData)
         self.cancel.clicked.connect(self.close)
         Dialog.retranslateUI(self)
 
