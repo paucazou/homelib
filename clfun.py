@@ -157,11 +157,12 @@ def correct():
                 break
     elif answer == '1':
         list_authors = library.listAuthors()
-        for i, author in enumerate(list_authors):
-            print("{} - {} {}".format(i,author[1],author[2]))
-        answer = int(input("Choose which item you want to correct : "))
-        if answer <= i:
-            newAuthor(update=True,author=list_authors[answer])
+        format_list_authors = [f"{i} - {x[1]} {x[2]}" for i, x in enumerate(list_authors)]
+        #for i, author in enumerate(list_authors):
+        #    print("{} - {} {}".format(i,author[1],author[2]))
+        #answer = int(input("Choose which item you want to correct : "))
+        answer = limit_or_choose(format_list_authors, " author")
+        newAuthor(update=True,author=list_authors[answer])
     elif answer == '2':
         list_publishers = library.listPublishers()
         for i, publisher in enumerate(list_publishers):
@@ -233,7 +234,7 @@ def limit_or_choose(choices,choice_type,pre_choice=''):
     choice_type is a string for the sentence Please choose..."""
     str_choice = ''
     choices_length = len(choices) + 1
-    news_item_hash = {' box':newBox,' book':newBook} # TODO develop
+    news_item_hash = {' box':newBox,' book':newBook, ' author':newAuthor} # TODO develop
     while True:
         alphaSort(choices,choice_type,str_choice)
         str_choice = finput('Please choose a{}'.format(choice_type),pre_choice)
@@ -241,6 +242,7 @@ def limit_or_choose(choices,choice_type,pre_choice=''):
             int_choice = int(str_choice)
             if int_choice == choices_length:
                 int_choice = news_item_hash[choice_type]()
+                return int_choice
             if int_choice <= choices_length:
                 return int_choice 
         
