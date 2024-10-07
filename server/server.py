@@ -1,16 +1,28 @@
 #!/usr/bin/python3
 # -*-coding:Utf-8 -*
 #Deus, in adjutorium meum intende
-# Thanks to http://apprendre-python.com/page-python-serveur-web-creer-rapidement
-import http.server
- 
-PORT = 8888
-server_address = ("", PORT)
+import hashlib
+import os
 
-server = http.server.HTTPServer
-handler = http.server.CGIHTTPRequestHandler
-handler.cgi_directories = ["/"]
-print("Serveur actif sur le port :", PORT)
+from flask import Flask, redirect, url_for
 
-httpd = server(server_address, handler)
-httpd.serve_forever()
+app = Flask("Homelib Server")
+
+@app.route("/dbchecksum.py")
+def dbchecksum():
+    db = os.path.realpath('static') + '/Library.db'
+    with open(db,'rb') as file:
+        sum = hashlib.sha256(file.read()).hexdigest()
+    return sum
+
+@app.route("/downloader.py")
+def downloader():
+    return redirect(url_for('static', filename="Library.db"))
+
+with app.test_request_context():
+    url_for('static', filename="Library.db")
+
+
+
+
+
