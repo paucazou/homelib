@@ -137,13 +137,16 @@ class AlphabeticSpinBox(QSpinBox):
 class NewAuthorWindow(Dialog):
     """Create a dialog window to enter or change an author"""
 
-    def __init__(self,update,db,first_name="",last_name=""):
+    def __init__(self,update,db,first_name="",last_name="",id=None):
         Dialog.__init__(self)
         self.update = update
         self.db = db
+        self.id = id
 
         self.initUI()
         self.retranslateUI()
+        self.first.setText(first_name)
+        self.last.setText(last_name)
         self.exec()
 
     def initUI(self):
@@ -170,22 +173,25 @@ class NewAuthorWindow(Dialog):
         if self.first.text() == "" and self.last.text() == "":
             return
 
-        if not self.update:
-            self.db.addAuthor(self.first.text(),self.last.text())
+        if self.update:
+            self.db.updateAuthor(self.id, self.first.text(), self.last.text())
+        else:
+            self.db.addAuthor(self.first.text(), self.last.text())
 
         Dialog.saveData(self)
 
 class NewPublisherWindow(Dialog):
     """Window to create a new publisher"""
-    def __init__(self,update,db,name=""):
+    def __init__(self,update,db,name="",id=None):
         Dialog.__init__(self)
 
         self.update = update
         self.db = db
-        self.name = name
+        self.id = id
 
         self.initUI()
         self.retranslateUI()
+        self.name_edit.setText(name)
         self.exec()
 
     def initUI(self):
@@ -209,22 +215,28 @@ class NewPublisherWindow(Dialog):
         if self.name_edit.text().isspace() or self.name_edit.text() == "":
             return
 
-        if not self.update:
+        if self.update:
+            self.db.updatePublisher(self.id, self.name_edit.text())
+        else:
             self.db.addPublisher(self.name_edit.text())
 
         Dialog.saveData(self)
 
 class NewLibWindow(Dialog):
     """Window to create a new library"""
-    def __init__(self,update,db,name=""):
+    def __init__(self,update,db,name="",place="",lines=1,columns=1,id=None):
         Dialog.__init__(self)
 
         self.update = update
         self.db = db
-        self.name = name
+        self.id = id
 
         self.initUI()
         self.retranslateUI()
+        self.name_edit.setText(name)
+        self.place_edit.setText(place)
+        self.lines_edit.setValue(lines)
+        self.columns_edit.setValue(columns)
         self.exec()
 
     def initUI(self):
@@ -271,20 +283,27 @@ class NewLibWindow(Dialog):
         if self.name_edit.text().isspace() or self.name_edit.text() == "" or self.place_edit.text().isspace() or self.place_edit.text() == "":
             return
 
-        if not self.update:
-            self.db.addLibrary(self.name_edit.text(),self.place_edit.text(), self.lines_edit.value(), self.columns_edit.value())
+        if self.update:
+            self.db.updateLibrary(self.id, self.name_edit.text(), self.place_edit.text(), self.lines_edit.value(), self.columns_edit.value())
+        else:
+            self.db.addLibrary(self.name_edit.text(), self.place_edit.text(), self.lines_edit.value(), self.columns_edit.value())
 
         Dialog.saveData(self)
 
 class NewBoxWindow(Dialog):
-    def __init__(self,update,db,name=""):
+    def __init__(self,update,db,name="",id=None,library_id=None,line=1,column='A'):
         Dialog.__init__(self)
         self.update = update
         self.db = db
-        self.name = name
+        self.id = id
         self.libs_data = {l[1]:l[0] for l in self.db.listLibraries()}
         self.initUI()
         self.retranslateUI()
+        self.name_edit.setText(name)
+        if library_id is not None:
+            self.lib_combo.index = library_id
+        self.lines_edit.setValue(line)
+        self.columns_edit.setValue(ord(column) if isinstance(column, str) else column)
         self.exec()
 
     def initUI(self):
@@ -345,13 +364,14 @@ class NewBoxWindow(Dialog):
         if self.name_edit.text().isspace() or self.name_edit.text() == "":
             return
 
-        if not self.update:
-
-            if self.lib_combo.invalid:
-                return self.abort_save(self.invalid_lib,self.lib_combo)
-            lib = self.lib_combo.index
-            line = self.lines_edit.value()
-            column = self.columns_edit.text()
+        if self.lib_combo.invalid:
+            return self.abort_save(self.invalid_lib, self.lib_combo)
+        lib = self.lib_combo.index
+        line = self.lines_edit.value()
+        column = self.columns_edit.text()
+        if self.update:
+            self.db.updateBox(self.id, self.name_edit.text(), lib, line, column)
+        else:
             self.db.addBox(self.name_edit.text(), lib, line, column)
 
         Dialog.saveData(self)
@@ -679,8 +699,14 @@ class NewBookWindow(Dialog):
             return
 
         boxes = self.db.listBoxes()
-        box = boxes[self.box_combo.index-1]
-        lib = self.db.listLibraries()[box[2]-1]
+        boxes_by_id = {b[0]: b for b in boxes}
+        box = boxes_by_id.get(self.box_combo.index)
+        if box is None:
+            return
+        libs_by_id = {l[0]: l for l in self.db.listLibraries()}
+        lib = libs_by_id.get(box[2])
+        if lib is None:
+            return
         boxnames = []
         for line in range (lib[3]+1):
             boxnames.append(['']*lib[4])

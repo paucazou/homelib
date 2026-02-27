@@ -50,6 +50,7 @@ def volumes_nb(txt: str) -> int:
     """Parses the txt to find the keywords 'tomes' or 'volumes'
     and return the number found before it"""
     old_txt = txt
+    hashval = hashlib.md5(old_txt.encode())
     txt = re.sub("[\.]",
                  "",
                  txt.lower())
@@ -66,7 +67,6 @@ def volumes_nb(txt: str) -> int:
                 continue
     if nb == 0:
         # try to find the value in sums.csv
-        hashval = hashlib.md5(old_txt.encode())
         nb = sums.get(hashval.hexdigest(),0)
     if nb == 0:
         # no volum has been found: let's ask the user

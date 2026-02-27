@@ -78,27 +78,45 @@ class Library():
     
     def findAuthorID(self,christian_name,last_name):
         self._cursor.execute("""SELECT id FROM authors WHERE christian_name = ? AND last_name = ?;""",(christian_name,last_name))
-        return self._cursor.fetchone()[0]
-    
+        row = self._cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Author '{christian_name} {last_name}' not found")
+        return row[0]
+
     def findBoxID(self,name):
         self._cursor.execute("""SELECT id FROM boxes WHERE name = ?;""",(name,))
-        return self._cursor.fetchone()[0]
-    
+        row = self._cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Box '{name}' not found")
+        return row[0]
+
     def findBoxName(self,ID):
         self._cursor.execute("""SELECT name FROM boxes WHERE id = ?;""",(ID,))
-        return self._cursor.fetchone()[0]
-    
+        row = self._cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Box id {ID} not found")
+        return row[0]
+
     def findLibraryID(self,name):
         self._cursor.execute("""SELECT id FROM libraries WHERE name = ?;""",(name,))
-        return self._cursor.fetchone()[0]
+        row = self._cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Library '{name}' not found")
+        return row[0]
 
     def findLibraryName(self, id):
         self._cursor.execute("""SELECT name FROM libraries WHERE id = ?;""",(id,))
-        return self._cursor.fetchone()[0]
-    
+        row = self._cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Library id {id} not found")
+        return row[0]
+
     def findPublisherID(self,name):
         self._cursor.execute("""SELECT id FROM publisher WHERE name = ?;""",(name,))
-        return self._cursor.fetchone()[0]
+        row = self._cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Publisher '{name}' not found")
+        return row[0]
     
     def listAll(self):
         """This method returns the WHOLE database"""

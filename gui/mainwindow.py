@@ -88,7 +88,9 @@ class Main(QMainWindow,SuperTranslator):
         
     def resizeThings(self):
         if self.W.searchwidget.pattern:
-            self.libInfo(self.W.results.currentItem().row(),0)
+            item = self.W.results.currentItem()
+            if item is not None:
+                self.libInfo(item.row(), 0)
             
     def resetResults(self):
         for line_edit in self.W.searchwidget.line_edits:
@@ -118,9 +120,15 @@ class Main(QMainWindow,SuperTranslator):
     
     def libInfo(self,*args):
         book = self.W.results.item(args[0],0).info
-        
-        box = self.results['boxes'][book[5]-1]   # [5] = box; [-1] is now 'volumes'
-        library = self.results['libraries'][box[2]-1]
+
+        boxes_by_id = {b[0]: b for b in self.results['boxes']}
+        libraries_by_id = {l[0]: l for l in self.results['libraries']}
+        box = boxes_by_id.get(book[5])   # [5] = box; [-1] is now 'volumes'
+        if box is None:
+            return
+        library = libraries_by_id.get(box[2])
+        if library is None:
+            return
         boxnames = []
         for line in range(library[3]+1):
             boxnames.append(['']*library[4])
@@ -193,6 +201,10 @@ class Results(QTableWidget,SuperTranslator):
         
     def createItems(self):
         self.items = []
+        authors_by_id = {a[0]: a for a in self.results['authors']}
+        boxes_by_id = {b[0]: b for b in self.results['boxes']}
+        publishers_by_id = {p[0]: p for p in self.results['publishers']}
+        libraries_by_id = {l[0]: l for l in self.results['libraries']}
         for i,book in enumerate(self.results['books']):
             book_name = book[1]
             if book[2] == 'anonymous':
@@ -203,13 +215,14 @@ class Results(QTableWidget,SuperTranslator):
                 authors_list = book[2].split('|')[1:]
                 book_authors = ''
                 for j in authors_list:
-                    j = int(j) - 1
-                    book_authors += """{} {}\n""".format(self.results['authors'][j][1],self.results['authors'][j][2])
-                book_authors = book_authors[:-1]
-            box = self.results['boxes'][book[5]-1]   # [5] = box; [-1] is now 'volumes'
-            book_box_name = "{} - {}{}".format(box[1],box[4],box[3])
-            book_publisher = self.results['publishers'][book[3]-1][1]
-            book_library = self.results['libraries'][box[2]-1][1]
+                    author = authors_by_id.get(int(j))
+                    if author:
+                        book_authors += f"{author[1]} {author[2]}\n"
+                book_authors = book_authors[:-1] if book_authors else ''
+            box = boxes_by_id.get(book[5])   # [5] = box; [-1] is now 'volumes'
+            book_box_name = f"{box[1]} - {box[4]}{box[3]}" if box else '?'
+            book_publisher = publishers_by_id.get(book[3], (None, '?'))[1]
+            book_library = libraries_by_id.get(box[2], (None, '?'))[1] if box else '?'
             firstitem = QTableWidgetItem(book_name)
             firstitem.info = book
             #is the book deleted?

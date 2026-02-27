@@ -13,8 +13,13 @@ def get_authors_strings(s,db):
     if s in (db.COLLECTIVE, db.ANONYMOUS):
         return s
     ids = [int(i) for i in s.split('|')][1:]
-    authors = [db.findAuthor(id) for id in ids]
-    authors = [f"{elt[-1]} {elt[-2]}" for elt in authors]
+    authors = []
+    for id in ids:
+        elt = db.findAuthor(id)
+        if elt is not None:
+            authors.append(f"{elt[-1]} {elt[-2]}")
+        else:
+            authors.append(f"[unknown author #{id}]")
     return ", ".join(authors)
 
 db = mainclass.Library("Library.db")
