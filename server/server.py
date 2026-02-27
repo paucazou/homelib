@@ -4,25 +4,30 @@
 import hashlib
 import os
 
-from flask import Flask, redirect, url_for
+from flask import Flask, send_file
 
 app = Flask("Homelib Server")
 
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Library.db')
+DB_PATH = os.path.realpath(DB_PATH)
+
+
 @app.route("/dbchecksum.py")
 def dbchecksum():
-    db = os.path.realpath('static') + '/Library.db'
-    with open(db,'rb') as file:
-        sum = hashlib.sha256(file.read()).hexdigest()
-    return sum
+    if not os.path.exists(DB_PATH):
+        return "Database not found", 404
+    with open(DB_PATH, 'rb') as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    return digest
+
 
 @app.route("/downloader.py")
 def downloader():
-    return redirect(url_for('static', filename="Library.db"))
-
-with app.test_request_context():
-    url_for('static', filename="Library.db")
-
-
+    if not os.path.exists(DB_PATH):
+        return "Database not found", 404
+    return send_file(DB_PATH, mimetype='application/octet-stream',
+                     as_attachment=True, download_name='Library.db')
 
 
-
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8888)

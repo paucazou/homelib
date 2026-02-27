@@ -21,43 +21,68 @@ import os
 import platform
 import urllib.request
 
-# logging
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+log = logging.getLogger(__name__)
 
 server = 'http://palantir:8888/'
 dev_comp = 'zenon'
+TIMEOUT = 10       # seconds for each HTTP request
+MAX_RETRIES = 3    # maximum download attempts before giving up
 
 main_dir = os.path.dirname(os.path.abspath(__file__)) + '/'
 library = main_dir + 'Library.db'
 temp_lib = main_dir + 'tmp/lib.db'
-with open(temp_lib,'w') as file : file.write('')
+
 
 def checksum():
     try:
         url = server + 'dbchecksum.py'
-        return urllib.request.urlopen(url).read().decode('utf-8')
-    except:
-        print('Server unattainable')
-        return False
+        with urllib.request.urlopen(url, timeout=TIMEOUT) as response:
+            return response.read().decode('utf-8').strip()
+    except Exception as e:
+        log.warning('Server unreachable: %s', e)
+        return None
 
-def is_same_sum(server_sum,db):
-    with open(db,'rb') as file:
-            sum = hashlib.sha256(file.read()).hexdigest()
-    if server_sum == sum:
-        return True
+
+def file_checksum(path):
+    with open(path, 'rb') as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+def is_same_sum(server_sum, db):
+    return server_sum == file_checksum(db)
+
 
 def download(server_sum):
-    while not is_same_sum(server_sum,temp_lib):
-        urllib.request.urlretrieve(server + 'downloader.py',temp_lib)
-    os.remove(library)
-    os.rename(temp_lib,library)
+    url = server + 'downloader.py'
+    for attempt in range(1, MAX_RETRIES + 1):
+        log.info('Downloading database (attempt %d/%d)…', attempt, MAX_RETRIES)
+        try:
+            urllib.request.urlretrieve(url, temp_lib)
+        except Exception as e:
+            log.warning('Download failed: %s', e)
+            continue
+        if is_same_sum(server_sum, temp_lib):
+            os.replace(temp_lib, library)
+            log.info('Database updated successfully.')
+            return
+        log.warning('Checksum mismatch after download, retrying…')
+    log.error('Failed to download a valid database after %d attempts.', MAX_RETRIES)
+
 
 def updateDB():
-    sum = checksum()
-    if not sum or is_same_sum(sum,library) or platform.node() == dev_comp:
+    if platform.node() == dev_comp:
+        log.debug('Running on dev machine (%s), skipping sync.', dev_comp)
         return
-    download(sum)
+    server_sum = checksum()
+    if not server_sum:
+        return
+    if is_same_sum(server_sum, library):
+        log.debug('Database already up to date.')
+        return
+    os.makedirs(os.path.dirname(temp_lib), exist_ok=True)
+    download(server_sum)
 
 
-
-
+if __name__ == '__main__':
+    updateDB()
