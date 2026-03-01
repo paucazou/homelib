@@ -12,6 +12,12 @@ _ = QCoreApplication.translate
 import util
 
 def get_authors(s,db):
+    """Parse a book's author field and return a list of display names.
+
+    If s is the sentinel string 'collective' or 'anonymous', return [s].
+    Otherwise s is a pipe-delimited string 'count|id1|id2|...'; resolve
+    each id via db.findAuthor and return a list of 'Last First' strings.
+    """
     if s in (db.COLLECTIVE, db.ANONYMOUS):
         return [s]
     ids = [int(i) for i in s.split('|')][1:]
@@ -20,8 +26,15 @@ def get_authors(s,db):
 
 
 class Selector(QComboBox,SuperTranslator):
-    """Class that displays a combo box
-    with a selector"""
+    """Editable QComboBox backed by a name → id dict.
+
+    Exposes two properties instead of the raw combo index:
+      invalid  — True if the current text does not match any known name.
+      index    — the id associated with the current text (read/write).
+
+    A case-insensitive, substring-match QCompleter is installed so the
+    user can type part of a name to filter the list.
+    """
     def __init__(self,data:dict):
         QComboBox.__init__(self)
         SuperTranslator.__init__(self)
@@ -31,13 +44,15 @@ class Selector(QComboBox,SuperTranslator):
 
 
     def setCompleter(self):
+        """Install a case-insensitive contains-mode QCompleter over the data keys."""
         self.completer = QCompleter(self.data.keys())
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
         self.completer.setFilterMode(Qt.MatchContains)
         QComboBox.setCompleter(self,self.completer)
 
-    
+
     def initUI(self):
+        """Make the combo editable, populate the dropdown, and reset displayed text."""
         self.setEditable(True)
         #self.editTextChanged.disconnect()
         self.fillPopup()
@@ -47,6 +62,7 @@ class Selector(QComboBox,SuperTranslator):
         #self.currentTextChanged.connect(self.fillPopup)
 
     def fillPopup(self):
+        """Repopulate the dropdown with names that contain the current text."""
         self.clear()
         self.names = sorted(n for n in self.data.keys() if self.currentText().lower() in n)
 
@@ -54,12 +70,15 @@ class Selector(QComboBox,SuperTranslator):
             self.addItem(name)
 
     def __invalid(self):
+        """Return True if the current text is not a key in the data dict."""
         return self.currentText() not in self.data.keys()
 
     def __current_index(self):
+        """Return the id corresponding to the currently displayed name."""
         return self.data[self.currentText()]
 
     def __set_current_index(self,i):
+        """Set the combo to display the name whose id equals i."""
         try:
             name = [name for name, idx in self.data.items() if i == idx ][0]
         except IndexError:
@@ -69,12 +88,15 @@ class Selector(QComboBox,SuperTranslator):
         self.setCurrentIndex(idx)
 
     def setCurrentText(self, text):
-        """Valid only if text exists"""
+        """Select the item matching text exactly; do nothing if text is not found."""
         idx = self.findText(text)
         self.setCurrentIndex(idx)
 
     def addElt(self,name,id):
-        """Add or update an element"""
+        """Add a new name/id pair (or update an existing one) and refresh the popup.
+
+        The current selection is preserved after the refresh.
+        """
         old_text = self.currentText()
         self.data[name] = id
         self.fillPopup()
@@ -85,7 +107,12 @@ class Selector(QComboBox,SuperTranslator):
     index = property(__current_index,__set_current_index)
 
 class Dialog(QDialog,SuperTranslator):
-    """Base class for every dialog box"""
+    """Base class for all modal data-entry dialogs.
+
+    Provides OK and Cancel buttons at the bottom of the layout.
+    Sets self.updated = True when the user accepts, so the caller can
+    detect whether any data was actually saved.
+    """
     def __init__(self):
         QDialog.__init__(self)
         SuperTranslator.__init__(self)
@@ -114,28 +141,43 @@ class Dialog(QDialog,SuperTranslator):
         self.ok.setText(_("Dialog","OK"))
 
     def saveData(self):
+        """Mark the dialog as successfully completed and close it."""
         self.updated = True
         self.close()
 
 class AlphabeticSpinBox(QSpinBox):
+    """QSpinBox that displays and accepts single uppercase letters (A–Z).
+
+    Internally stores values as their ASCII code (65–90).  Use
+    textFromValue / valueFromText for conversion and validate to reject
+    anything that is not a single uppercase letter.
+    """
     def __init__(self):
         super().__init__()
         self.setMinimum(ord('A'))
         self.setMaximum(ord('Z'))
 
     def textFromValue(self, val : int) -> str:
+        """Convert the internal ASCII code to the displayed letter."""
         return chr(val)
 
     def valueFromText(self, val : str) -> int:
+        """Convert a typed uppercase letter to its ASCII code."""
         return ord(val)
 
     def validate(self, text : str, pos : int) -> QValidator.State:
+        """Accept only single uppercase letters A–Z."""
         letters = [chr(letter) for letter in range(ord('A'),ord('Z')+1)]
         state = QValidator.Acceptable if text in letters else QValidator.Invalid
         return state, text, pos
 
 class NewAuthorWindow(Dialog):
-    """Create a dialog window to enter or change an author"""
+    """Modal dialog for creating or editing a single author record.
+
+    In update mode (update=True) the form is pre-filled with the
+    provided first_name and last_name, and id must be the author's
+    database id so that updateAuthor() can be called on save.
+    """
 
     def __init__(self,update,db,first_name="",last_name="",id=None):
         Dialog.__init__(self)
@@ -150,6 +192,7 @@ class NewAuthorWindow(Dialog):
         self.exec()
 
     def initUI(self):
+        """Build a side-by-side first-name / last-name layout above the buttons."""
         self.layout = QVBoxLayout()
 
         self.names_layout = QHBoxLayout()
@@ -165,11 +208,12 @@ class NewAuthorWindow(Dialog):
     def retranslateUI(self):
         title = _("NewAuthorWindow","Update author") if self.update else _("NewAuthorWindow","New author")
         self.setWindowTitle(title)
-        
+
         self.first.setPlaceholderText(_("NewAuthorWindow","First name"))
         self.last.setPlaceholderText(_("NewBookWindow","Last name"))
 
     def saveData(self):
+        """Refuse to save if both fields are empty; otherwise write to the database."""
         if self.first.text() == "" and self.last.text() == "":
             return
 
@@ -181,7 +225,11 @@ class NewAuthorWindow(Dialog):
         Dialog.saveData(self)
 
 class NewPublisherWindow(Dialog):
-    """Window to create a new publisher"""
+    """Modal dialog for creating or editing a publisher record.
+
+    In update mode the form is pre-filled with name and id must be the
+    publisher's database id.
+    """
     def __init__(self,update,db,name="",id=None):
         Dialog.__init__(self)
 
@@ -195,6 +243,7 @@ class NewPublisherWindow(Dialog):
         self.exec()
 
     def initUI(self):
+        """Build a single name field above the OK/Cancel buttons."""
         self.layout = QVBoxLayout()
 
         self.names_layout = QHBoxLayout()
@@ -212,6 +261,7 @@ class NewPublisherWindow(Dialog):
         self.name_edit.setPlaceholderText(_("NewPublisherWindow","Publisher's name"))
 
     def saveData(self):
+        """Refuse to save if the name field is blank; otherwise write to the database."""
         if self.name_edit.text().isspace() or self.name_edit.text() == "":
             return
 
@@ -223,7 +273,13 @@ class NewPublisherWindow(Dialog):
         Dialog.saveData(self)
 
 class NewLibWindow(Dialog):
-    """Window to create a new library"""
+    """Modal dialog for creating or editing a library record.
+
+    A library has a name, a physical location (place), and a 2D shelf
+    grid defined by its number of lines and columns.  In update mode all
+    fields are pre-filled from the provided arguments and id must be the
+    library's database id.
+    """
     def __init__(self,update,db,name="",place="",lines=1,columns=1,id=None):
         Dialog.__init__(self)
 
@@ -240,6 +296,7 @@ class NewLibWindow(Dialog):
         self.exec()
 
     def initUI(self):
+        """Build fields for name, physical location, and grid dimensions (lines × columns)."""
         self.layout = QVBoxLayout()
 
         self.names_layout = QHBoxLayout()
@@ -280,6 +337,7 @@ class NewLibWindow(Dialog):
         self.lines_label.setText(_("NewLibWindow","Lines"))
 
     def saveData(self):
+        """Refuse to save if name or place is blank; otherwise write to the database."""
         if self.name_edit.text().isspace() or self.name_edit.text() == "" or self.place_edit.text().isspace() or self.place_edit.text() == "":
             return
 
@@ -291,6 +349,12 @@ class NewLibWindow(Dialog):
         Dialog.saveData(self)
 
 class NewBoxWindow(Dialog):
+    """Modal dialog for creating or editing a box record.
+
+    A box has a name, a parent library (chosen from a Selector), and a
+    grid position (line number + column letter).  In update mode all
+    fields are pre-filled from the provided arguments.
+    """
     def __init__(self,update,db,name="",id=None,library_id=None,line=1,column='A'):
         Dialog.__init__(self)
         self.update = update
@@ -307,6 +371,7 @@ class NewBoxWindow(Dialog):
         self.exec()
 
     def initUI(self):
+        """Build fields for box name, library selector, and grid position (line + column)."""
         self.layout = QVBoxLayout()
 
         self.name_layout = QHBoxLayout()
@@ -341,6 +406,7 @@ class NewBoxWindow(Dialog):
         self.setLayout(self.layout)
 
     def new_lib(self):
+        """Open NewLibWindow to create a library, then add it to the library selector."""
         n = NewLibWindow(False,self.db)
         if n.updated:
             lib = self.db.listLibraries()[-1]
@@ -361,6 +427,7 @@ class NewBoxWindow(Dialog):
         self.invalid_column = _("NewBoxWindow","Invalid column")
 
     def saveData(self):
+        """Validate name and library selection, then call addBox or updateBox."""
         if self.name_edit.text().isspace() or self.name_edit.text() == "":
             return
 
@@ -377,13 +444,22 @@ class NewBoxWindow(Dialog):
         Dialog.saveData(self)
 
     def abort_save(self,text,widget_focus):
+        """Show text as a warning message box."""
         self.message_warning.setText(text)
         self.message_warning.exec()
 
 
 class NewBookWindow(Dialog):
-    """Create a dialog window to enter
-    or change a book in the database"""
+    """Main dialog for adding or editing a book entry.
+
+    In update mode, pass the existing record's data as keyword arguments:
+      title, authors (pipe-delimited string or sentinel), publisher (id),
+      box (id), details (free text), id (book's database id).
+
+    The dialog pre-fills all fields, handles the anonymous/collective
+    checkboxes, supports multiple author selector rows, and shows a
+    shelf-position preview for the selected box.
+    """
     def __init__(self,update,db,**kw):
         #title="",authors="",box="",library="",details="",id=None):
         Dialog.__init__(self)
@@ -406,8 +482,7 @@ class NewBookWindow(Dialog):
         self.exec()
 
     def fill_base_data(self):
-        """Fill the boxes with
-        base data before updating them"""
+        """Pre-fill all form fields with existing book data when in update mode."""
         if not self.update:
             return
         print(self.base_data)
@@ -431,6 +506,7 @@ class NewBookWindow(Dialog):
             w.setCurrentText(a)
 
     def define_signals_slots(self):
+        """Connect all widget signals to their handler methods."""
         self.anonymous_checkbox.stateChanged.connect(self.toggle_authors)
         self.collective_checkbox.stateChanged.connect(self.toggle_authors)
         self.anonymous_checkbox.stateChanged.connect(lambda : self.collective_checkbox.setCheckState(Qt.Unchecked))
@@ -447,11 +523,13 @@ class NewBookWindow(Dialog):
         self.generate_author_shortcut.activated.connect(self.generate_author)
 
     def get_authors_data(self):
+        """Rebuild self.authors_data as a 'Last First' → id dict from the authors table."""
         raw = self.db.listAuthors()
         self.authors_data = { f"{a[2]} {a[1]}" : a[0] for a in raw }
-        
-        
+
+
     def new_author(self):
+        """Open NewAuthorWindow; if saved, add the new author to all author selectors."""
         n = NewAuthorWindow(False,self.db)
         if n.updated:
             # add a new author
@@ -462,15 +540,17 @@ class NewBookWindow(Dialog):
                 w.itemAt(0).widget().addElt(nauthor,author[0])
 
     def new_publisher(self):
+        """Open NewPublisherWindow; if saved, add the new publisher to the combo and select it."""
         n = NewPublisherWindow(False,self.db)
         if n.updated:
             publisher = self.db.listPublishers()[-1]
             print(publisher)
             self.publisher_combo.addElt(publisher[1],publisher[0])
-        
+
             self.publisher_combo.index = publisher[0]
 
     def new_box(self):
+        """Open NewBoxWindow; if saved, add the new box to the combo and select it."""
         n = NewBoxWindow(False,self.db)
         if n.updated:
             box = self.db.listBoxes()[-1]
@@ -478,11 +558,17 @@ class NewBookWindow(Dialog):
             self.box_combo.index = box[0]
 
     def abort_save(self,text,widget_focus):
+        """Show text as a warning dialog and move keyboard focus to widget_focus."""
         self.message_warning.setText(text)
         self.message_warning.exec()
         widget_focus.setFocus(Qt.OtherFocusReason)
 
     def saveData(self):
+        """Validate all fields then call addBook or updateBook.
+
+        Validation order: title non-blank → authors valid → publisher valid
+        → box valid.  Calls abort_save and returns early on the first failure.
+        """
         title = self.title_edit.text()
         if title.isspace() or title == "":
             self.message_warning.setText(self.no_title)
@@ -512,8 +598,13 @@ class NewBookWindow(Dialog):
         Dialog.saveData(self)
 
     def getAuthorsFromData(self):
-        """Return a string representing the authors
-        for the database"""
+        """Build the pipe-delimited author string from the current selector state.
+
+        Returns 'anonymous' or 'collective' if the corresponding checkbox is
+        ticked.  Otherwise collects the id from each author row and returns
+        'count|id1|id2|...'.  Returns None (blocking the save) if any
+        selector contains an invalid (unrecognised) name.
+        """
         if self.anonymous_checkbox.isChecked():
             return self.db.ANONYMOUS
 
@@ -548,6 +639,12 @@ class NewBookWindow(Dialog):
             """
 
     def generate_author(self):
+        """Add one author selector row (Selector + remove/add buttons) to the author section.
+
+        The '+' button adds another row by calling generate_author again.
+        The '-' button removes this row unless it is the only one remaining.
+        Tab order is updated after every addition or removal.
+        """
         author_combo = Selector(self.authors_data)
 
         add_author = QToolButton()
@@ -580,6 +677,11 @@ class NewBookWindow(Dialog):
         self.set_tab_order()
 
     def toggle_authors(self):
+        """Show or hide the author selector rows when Anonymous/Collective is toggled.
+
+        Checking either box hides and clears all author rows.
+        Unchecking both boxes restores one empty author row.
+        """
         if self.authors_activated and ( self.collective_checkbox.isChecked() or self.anonymous_checkbox.isChecked()):
             # deactivation
             for w in self.authors_widgets:
@@ -688,6 +790,11 @@ class NewBookWindow(Dialog):
 
 
     def preview_box(self):
+        """Render a Pattern widget for the selected box and insert it below the form.
+
+        Replaces any previously shown pattern.  Does nothing if the selected
+        box id cannot be resolved to a known box or its parent library.
+        """
         # check that a box is not already on screen
         if self.previous_pattern_widget is not None:
             self.layout.removeWidget(self.previous_pattern_widget)
@@ -722,6 +829,13 @@ class NewBookWindow(Dialog):
         self.previous_pattern_widget = pattern
 
     def set_tab_order(self):
+        """Set the keyboard Tab order through all author rows and into the publisher combo.
+
+        Each author row has three widgets: the Selector, the remove button (-),
+        and the add button (+).  Tab moves through them in order, then into
+        the next row's Selector, and finally into the publisher combo after
+        the last row.
+        """
         aw = self.authors_widgets
         if len(aw) == 0:
             return

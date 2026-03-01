@@ -7,20 +7,33 @@ import os
 import sys
 if sys.platform == 'linux':
     import readline
-    
+
 current_dir = os.path.dirname(os.path.abspath(__file__)) + '/'
 library = mainclass.Library(current_dir + 'Library.db')
 
 alphabet = ('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')
 
 def alphaSort(string_list,new_name,research='',new_item=True):
+    """Print string_list sorted by the part after ' - ', filtered by research.
+
+    Only items whose text contains research (case-insensitive) are printed.
+    If new_item is True, a final line 'N+1 - New <new_name>' is printed to
+    let the user create a new entry.
+    """
     for elt in sorted(string_list,key=lambda x: x.split(' - ')[1]):
         if research.lower() in elt.lower():
             print(elt)
     if new_item:
         print("{} - New {}".format(len(string_list)+1,new_name))
-    
+
 def setFinput(function):
+    """Decorator that enables readline pre-fill on Linux.
+
+    On Linux, returns function unchanged (it already uses readline).
+    On other platforms, returns a shim that prints the pre-fill text and
+    falls back to a plain input() call, interpreting literal '\\n' as newline.
+    Applied to finput().
+    """
     if sys.platform == 'linux':
         return function
     else:
@@ -31,6 +44,11 @@ def setFinput(function):
 
 
 def list_books():
+    """Return a list of formatted book strings for every row in the books table.
+
+    Each string has the form 'i - Title. Author(s): ... Publisher: ...'.
+    The list is in database insertion order (not sorted).
+    """
     books = []
     list_books = library.listBooks()
     list_authors = library.listAuthors()
@@ -48,7 +66,7 @@ def list_books():
 
 
 def delete_book():
-    """Tags a book as deleted"""
+    """Interactive loop: display books, ask for a choice, confirm, then soft-delete."""
     books = list_books()
     answer = ""
     while True:
@@ -64,7 +82,11 @@ def delete_book():
             break
 
 def mass_change():
-    """Change box of many books"""
+    """Interactive: select a destination box then select books to move there.
+
+    The user confirms the target box, selects books one by one, and all
+    selected books are moved to the chosen box via updateBoxOfBook().
+    """
     # select box
     answer = 'no'
     while answer != "yes":
@@ -72,7 +94,7 @@ def mass_change():
         choices = [ "{} - {}".format(i+1,elt[1]) for i, elt in enumerate(list_boxes)]
         box = limit_or_choose(choices,' box',)
         list_boxes = library.listBoxes()
-        box_name = list_boxes[box-1][1] 
+        box_name = list_boxes[box-1][1]
         answer = finput("Box chosen: {}. Continue?([no]/yes)".format(box_name))
     # select books
     ## building list
@@ -97,21 +119,31 @@ def mass_change():
 
     # applying changes
     for j in books_selected:
-        library.updateBoxOfBook(j+1,box)     
+        library.updateBoxOfBook(j+1,box)
 
 def _select_box(string_to_print=' box'):
+    """Interactively prompt the user to choose a box and confirm the selection.
+
+    Loops until the user answers 'yes' to the confirmation prompt.
+    Returns (box_id, box_name).
+    """
     answer = 'no'
     while answer != "yes":
         list_boxes = library.listBoxes()
         choices = [ "{} - {}".format(i+1,elt[1]) for i, elt in enumerate(list_boxes)]
         box = limit_or_choose(choices,string_to_print)
         list_boxes = library.listBoxes()
-        box_name = list_boxes[box-1][1] 
+        box_name = list_boxes[box-1][1]
         answer = finput("Box chosen: {}. Continue?([no]/yes)".format(box_name))
     return box, box_name
 
 def switch_boxes():
-    """Change the box of books of a specified box"""
+    """Interactive: move every book from one box to another.
+
+    Asks the user to select a source box and a destination box, shows the
+    intended transfer and asks for confirmation, then calls updateBoxOfBook()
+    for each book in the source box.  Recurses if the user cancels.
+    """
     fbox, first_box = _select_box(' box from')
     sbox, second_box = _select_box(' box to')
     if first_box == second_box:
@@ -132,12 +164,18 @@ def switch_boxes():
 
 
 
-
 def correct():
+    """Top-level interactive menu for editing existing records.
+
+    Presents a numbered menu and dispatches to the appropriate new*/mass_change
+    function based on the user's choice:
+      0 Books  1 Authors  2 Publishers  3 Boxes  4 Libraries
+      5 Boxes: mass change  6 Switch boxes
+    """
     for i, elt in enumerate(('Books','Authors','Publishers','Boxes','Libraries','Boxes: mass', 'Switch boxes')):
         print('{} - {}'.format(i,elt))
     answer=input("Choose which kind of items you want to correct : ")
-    
+
     if answer == '0':
         list_books = library.listBooks()
         list_authors = library.listAuthors()
@@ -189,10 +227,15 @@ def correct():
         mass_change()
     elif answer == '6':
         switch_boxes()
-    
+
 def drawLib(lines, columns, sline=-1, scolumn=-1):
-    """All args are integers. sline & scolumn represents the
-    box selected"""
+    """Return an ASCII-art string representing a library shelf grid.
+
+    lines and columns define the grid dimensions.  If sline and scolumn
+    are provided (1-based), the corresponding cell is highlighted with
+    '+' fill characters instead of spaces.  Column headers are letters
+    (A, B, ...) and row labels are numbers on the right side of each row.
+    """
     pic = ""
     endline = ['\n']*10
     for i, letter in enumerate(alphabet):
@@ -219,6 +262,12 @@ def drawLib(lines, columns, sline=-1, scolumn=-1):
 
 @setFinput
 def finput(prompt='>>> ', text=''):
+    """Readline-aware input with a pre-filled default value.
+
+    On Linux, inserts text into the readline buffer before showing prompt
+    so the user can accept or edit it.  The result has literal '\\n'
+    sequences replaced by real newlines, allowing multi-line field values.
+    """
     text = str(text)
     def hook():
         readline.insert_text(text)
@@ -229,9 +278,18 @@ def finput(prompt='>>> ', text=''):
     return result.replace('\\n','\n')
 
 def limit_or_choose(choices,choice_type,pre_choice=''):
-    """Let the user limit the choice or choose an item from choices.
-    pre_choice is a string default choice
-    choice_type is a string for the sentence Please choose..."""
+    """Display a filtered list and let the user choose an item or create a new one.
+
+    Shows choices sorted and filtered by whatever the user types.  When
+    the user enters a number equal to len(choices)+1, the corresponding
+    creation function (newBox, newBook, or newAuthor) is called and its
+    return value is returned.  Otherwise the chosen 1-based integer index
+    is returned.
+
+    choice_type must be one of ' box', ' book', or ' author'; it is used
+    both for the prompt and to look up the creation function.
+    pre_choice seeds the readline pre-fill for the first prompt.
+    """
     str_choice = ''
     choices_length = len(choices) + 1
     news_item_hash = {' box':newBox,' book':newBook, ' author':newAuthor} # TODO develop
@@ -244,10 +302,15 @@ def limit_or_choose(choices,choice_type,pre_choice=''):
                 int_choice = news_item_hash[choice_type]()
                 return int_choice
             if int_choice <= choices_length:
-                return int_choice 
-        
+                return int_choice
+
 
 def goon(function):
+    """Run function in a loop, stopping when the user answers 'no'.
+
+    Prints a hint about entering newlines, then calls function() repeatedly,
+    asking 'Do you want to continue?' after each call.
+    """
     print("""If you want to enter a new line, press \\n""")
     while True:
         function()
@@ -256,6 +319,12 @@ def goon(function):
             break
 
 def newAuthor(update=False,author=('',)*3):
+    """Interactively create or edit an author record.
+
+    Prompts for first and last name, pre-filling from the author tuple when
+    update is True.  Asks for confirmation; recurses if the user says no.
+    Calls updateAuthor or addAuthor, then returns the author's id.
+    """
     christian_name = ''
     last_name = ''
     while christian_name == "":
@@ -274,6 +343,14 @@ def newAuthor(update=False,author=('',)*3):
             return newAuthor(update,author)
 
 def newBox(update=False,box=('',)*5):
+    """Interactively create or edit a box record.
+
+    Prompts for name, parent library, row (line), and column letter, all
+    pre-filled from box when update is True.  Validates the column letter
+    against the library's declared column count and shows an ASCII shelf
+    preview before asking for confirmation.  Recurses if the user says no.
+    Calls updateBox or addBox, then returns the box id.
+    """
     name=''
     library_id =-1
     line=-1
@@ -316,8 +393,17 @@ def newBox(update=False,box=('',)*5):
             return library.findBoxID(name)
         elif 'n' in answer.lower():
             return newBox(update,box)
-        
+
 def newBook(update=False,book=('',)*6):
+    """Interactively create or edit a book record.
+
+    Prompts for title, number of authors and individual author selections,
+    publisher, extra notes, and storage box.  All fields are pre-filled from
+    the book tuple when update is True.  Author count accepts 0 (anonymous),
+    'collective', or a positive integer; for each named author the user picks
+    from the existing author list or creates a new one.  Shows a summary and
+    asks for confirmation.  Calls updateBook or addBook on approval.
+    """
     authors_nb = -1
     authors = ''
     authors_names = ''
@@ -343,7 +429,7 @@ def newBook(update=False,book=('',)*6):
             authors_nb = float(authors_nb)
         except ValueError:
             authors_nb = -1
-        
+
     if authors_nb == 0:
         authors = "anonymous"
     elif authors_nb == float('inf'):
@@ -374,7 +460,7 @@ def newBook(update=False,book=('',)*6):
             authors_nb-=1
             author = ''
             del(pre_authors[-1])
-            
+
     list_authors = library.listAuthors()
     for nb in authors.split('|')[1:]:
         nb = int(nb) - 1
@@ -419,7 +505,7 @@ def newBook(update=False,book=('',)*6):
     choices = [ "{} - {}".format(i+1,elt[1]) for i, elt in enumerate(list_boxes)]
     box = limit_or_choose(choices,' box',book[5])
     list_boxes = library.listBoxes()
-    box_name = list_boxes[box-1][1]  
+    box_name = list_boxes[box-1][1]
     print("""New book :
         Name : {}
         Authors : {} - {}
@@ -442,8 +528,15 @@ def newBook(update=False,book=('',)*6):
         elif 'n' in answer.lower():
             print("Discarded")
             break
-           
+
 def newLibrary(update=False,lib=('',)*5):
+    """Interactively create or edit a library record.
+
+    Prompts for name, physical location, number of shelf lines, and number
+    of columns, all pre-filled from lib when update is True.  Displays an
+    ASCII grid preview, asks for confirmation, and recurses if the user says
+    no.  Calls updateLibrary or addLibrary, then returns the library id.
+    """
     name = ''
     place = ''
     lines = -1
@@ -473,6 +566,12 @@ def newLibrary(update=False,lib=('',)*5):
             return newLibrary(update,lib)
 
 def newPublisher(update=False,pre_publisher=('',)*2):
+    """Interactively create or edit a publisher record.
+
+    Prompts for the publisher name, pre-filled from pre_publisher when
+    update is True.  Asks for confirmation; recurses if the user says no.
+    Calls updatePublisher or addPublisher, then returns the publisher id.
+    """
     name = ''
     while name == "":
         name = finput("Enter publisher's name : ",pre_publisher[1])
@@ -486,7 +585,7 @@ def newPublisher(update=False,pre_publisher=('',)*2):
             return library.findPublisherID(name)
         elif 'n' in answer.lower():
             return newPublisher(update,pre_publisher)
-        
-        
-        
-    
+
+
+
+

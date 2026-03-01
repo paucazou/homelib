@@ -9,12 +9,20 @@ from PyQt5.QtWidgets import QGraphicsScene, QStyle, QGraphicsView, QVBoxLayout, 
 alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 def list_default(list_obj,index,default):
+    """Return list_obj[index], or default if the index is out of range."""
     try:
         return list_obj[index]
     except IndexError:
         return default
 
 class Pattern(QWidget):
+    """QWidget that renders a 2D grid of library shelves.
+
+    Each cell displays the name of the box at that grid position.
+    The selected box (identified by sline and scolumn) is filled red.
+    Column headers are letters (A, B, ...) and row labels are numbers.
+    The library name and physical location are drawn below the grid.
+    """
     def __init__(self,lines,columns,sline,scolumn,boxnames,libname,place,window):
         QWidget.__init__(self)
         self.scene = QGraphicsScene()
@@ -25,21 +33,31 @@ class Pattern(QWidget):
             self.setMinimumWidth(self.view.width())
 
     def initUI(self,lines,columns,sline,scolumn,boxnames,libname,place):
+        """Build the QGraphicsView layout and draw the library grid."""
         self.drawLibrary(lines,columns,sline,scolumn,boxnames,libname,place)
-        
+
         self.view.show()
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.view)
         self.setLayout(self.layout)
-        
+
     def drawLibrary(self,lines,columns,sline,scolumn,boxnames,libname,place):
+        """Populate the QGraphicsScene with the shelf grid.
+
+        All positional arguments are 1-based and decremented internally to
+        zero-based indices.  Each box cell is a 100×100-pixel rectangle;
+        the box name is fitted inside by progressively inserting line breaks
+        into the label until it fits.  The selected cell (sline, scolumn) is
+        filled with a red brush.  libname and place are drawn as text below
+        the last row.
+        """
         lines,columns,sline,scolumn = (item - 1 for item in (lines,columns,sline,scolumn))
         pen = QPen()
         pen.setWidth(5)
         sbrush = QBrush()
         sbrush.setStyle(Qt.SolidPattern)
         sbrush.setColor(Qt.red)
-        
+
         letterbrush = QBrush()
         letterbrush.setColor(Qt.red)
         letterbrush.setStyle(Qt.SolidPattern)
@@ -48,7 +66,7 @@ class Pattern(QWidget):
             text = self.scene.addSimpleText(alphabet[i])
             text.setPos(50+i*side,0)
             if i == scolumn:
-                text.setBrush(letterbrush)        
+                text.setBrush(letterbrush)
         i=0
         while i <= lines:
             j=0

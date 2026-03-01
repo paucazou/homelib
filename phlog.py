@@ -21,6 +21,11 @@ def consoleLog(level,logger=logging.getLogger()):
     return logger
 
 def fileLog(level,file_name='activity.log',logger=logging.getLogger()):
+    """Configure and return a logger that writes to a rotating log file.
+
+    The file rotates at 1 MB and keeps one backup.  level must be one of
+    the standard logging constants (CRITICAL, ERROR, WARNING, INFO, DEBUG).
+    """
     if level not in levels:
         raise ValueError("Unknown level. Level must be CRITICAL : {}, ERROR : {}, WARNING : {}, INFO : {}, DEBUG : {}".format(*levels))
     file_handler = logging.handlers.RotatingFileHandler(file_name,'a',1000000,1)
@@ -30,6 +35,7 @@ def fileLog(level,file_name='activity.log',logger=logging.getLogger()):
     return logger
 
 def allLog(level,file_name='activity.log',logger=logging.getLogger()):
+    """Configure and return a logger that writes to both stderr and a rotating log file."""
     logger = consoleLog(level,logger)
     logger = fileLog(level,file_name,logger)
     return logger
