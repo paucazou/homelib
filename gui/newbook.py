@@ -529,7 +529,7 @@ class NewBookWindow(Dialog):
 
 
     def new_author(self):
-        """Open NewAuthorWindow; if saved, add the new author to all author selectors."""
+        """Open NewAuthorWindow; if saved, add the new author to all author selectors and select it in the last one."""
         n = NewAuthorWindow(False,self.db)
         if n.updated:
             # add a new author
@@ -538,6 +538,9 @@ class NewBookWindow(Dialog):
             nauthor = f"{author[2]} {author[1]}"
             for w in self.authors_widgets:
                 w.itemAt(0).widget().addElt(nauthor,author[0])
+            # Automatically select the new author in the last author selector,
+            # mirroring the behaviour of new_publisher() and new_box().
+            self.authors_widgets[-1].itemAt(0).widget().index = author[0]
 
     def new_publisher(self):
         """Open NewPublisherWindow; if saved, add the new publisher to the combo and select it."""
