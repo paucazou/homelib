@@ -2,6 +2,19 @@
 # -*-coding:Utf-8 -*
 #Deus, in adjutorium meum intende
 
+"""Pulls a fresh Library.db down from the Pi.
+
+Since the web application went in, the copy on palantir is the authoritative
+one: it is what the phones and the browser write to, and what gets committed and
+pushed every day.  This script overwrites the local database with that copy
+whenever the two differ, so anything entered in the desktop GUI or the command
+line while palantir was reachable will be replaced on the next start.  Enter
+books in the web application, or on this machine only while the Pi is off.
+
+The address below is unchanged on purpose: the web application listens on the
+same port 8888 and answers the same two URLs, so this file did not have to move.
+"""
+
 import hashlib
 import logging
 import os

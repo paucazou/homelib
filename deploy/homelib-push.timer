@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily push of the Homelib database
+
+[Timer]
+# Once a day, in the small hours.  RandomizedDelaySec keeps it off the hour,
+# and Persistent catches up after the Pi has been off -- which it often is.
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=30m
+Persistent=true
+Unit=homelib-push.service
+
+[Install]
+WantedBy=timers.target

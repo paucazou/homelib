@@ -1,0 +1,44 @@
+[Unit]
+Description=Homelib web application
+Documentation=https://github.com/paucazou/homelib
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=philippe
+Group=philippe
+WorkingDirectory=/home/philippe/philippe/homelib
+
+Environment=HOMELIB_DB=/home/philippe/philippe/homelib/Library.db
+Environment=HOMELIB_REPO=/home/philippe/philippe/homelib
+Environment=HOMELIB_DUMP=/home/philippe/philippe/homelib/Library.sql
+Environment=HOMELIB_SUMS=/home/philippe/philippe/homelib/sums.csv
+Environment=HOMELIB_SSH_KEY=/home/philippe/.ssh/homelib_deploy
+Environment=HOMELIB_GIT_REMOTE=origin
+Environment=HOMELIB_GIT_BRANCH=master
+# Writes are gathered for two minutes before a commit, so entering thirty books
+# in one sitting produces one readable commit instead of thirty.
+Environment=HOMELIB_DEBOUNCE=120
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/home/philippe/philippe/homelib/.venv/bin/gunicorn \
+    --config /home/philippe/philippe/homelib/deploy/gunicorn.conf.py \
+    webapp.wsgi:app
+
+# SIGTERM lets gunicorn finish in-flight requests and lets the application
+# flush any commit it was still holding.
+KillSignal=SIGTERM
+TimeoutStopSec=45
+Restart=on-failure
+RestartSec=5
+
+# It only ever needs its own directory and the network.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/philippe/philippe/homelib
+
+[Install]
+WantedBy=multi-user.target

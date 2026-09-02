@@ -1,0 +1,4 @@
+# The web application.  Both are pure Python, which matters: the Pi this runs
+# on is armv6 and has no wheels waiting for it on PyPI for anything compiled.
+Flask>=3.0
+gunicorn>=21.2

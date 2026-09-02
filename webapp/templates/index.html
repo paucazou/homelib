@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Homelib</title>
+<meta name="description" content="La bibliothèque de la maison">
+<meta name="theme-color" content="#7a5c3e">
+<link rel="manifest" href="{{ url_for('manifest') }}">
+<link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <button class="icon-btn menu-btn" id="nav-toggle" aria-label="Menu" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <a class="brand" href="#/search">
+    <svg viewBox="0 0 24 24" aria-hidden="true" class="brand-mark">
+      <path d="M4 4h5v16H4zM10 4h4v16h-4zM15.5 5l4 15"/>
+    </svg>
+    <span>Homelib</span>
+  </a>
+  <div class="topbar-spacer"></div>
+  <button class="chip sync-chip" id="sync-chip" title="" data-i18n-title="sync.title">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-label" data-i18n="sync.idle">Synchro</span>
+  </button>
+  <button class="icon-btn" id="lang-btn" aria-label="Langue"><span id="lang-label">EN</span></button>
+  <button class="icon-btn" id="theme-btn" aria-label="Thème">
+    <svg viewBox="0 0 24 24" aria-hidden="true" id="theme-icon"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+  </button>
+</header>
+
+<div class="layout">
+  <nav class="sidenav" id="sidenav" aria-label="Navigation">
+    <a href="#/search" data-nav="search"><span class="nav-ico">⌕</span><span data-i18n="nav.search">Recherche</span></a>
+    <a href="#/shelves" data-nav="shelves"><span class="nav-ico">▦</span><span data-i18n="nav.shelves">Rayonnages</span></a>
+    <a href="#/new" data-nav="new"><span class="nav-ico">＋</span><span data-i18n="nav.new">Nouveau livre</span></a>
+    <hr>
+    <a href="#/authors" data-nav="authors"><span class="nav-ico">✎</span><span data-i18n="nav.authors">Auteurs</span></a>
+    <a href="#/publishers" data-nav="publishers"><span class="nav-ico">⌂</span><span data-i18n="nav.publishers">Éditeurs</span></a>
+    <a href="#/boxes" data-nav="boxes"><span class="nav-ico">▤</span><span data-i18n="nav.boxes">Étagères</span></a>
+    <a href="#/libraries" data-nav="libraries"><span class="nav-ico">▥</span><span data-i18n="nav.libraries">Bibliothèques</span></a>
+    <hr>
+    <a href="#/tools" data-nav="tools"><span class="nav-ico">⚒</span><span data-i18n="nav.tools">Outils</span></a>
+    <a href="#/trash" data-nav="trash"><span class="nav-ico">⌫</span><span data-i18n="nav.trash">Corbeille</span></a>
+    <a href="#/history" data-nav="history"><span class="nav-ico">↺</span><span data-i18n="nav.history">Historique</span></a>
+    <a href="#/stats" data-nav="stats"><span class="nav-ico">▲</span><span data-i18n="nav.stats">Statistiques</span></a>
+    <a href="#/export" data-nav="export"><span class="nav-ico">↧</span><span data-i18n="nav.export">Export</span></a>
+  </nav>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <main id="view" class="view" tabindex="-1">
+    <div class="loading" id="boot"><span class="spinner"></span><span data-i18n="app.loading">Chargement de la bibliothèque…</span></div>
+  </main>
+</div>
+
+<nav class="bottomnav" aria-label="Navigation">
+  <a href="#/search" data-nav="search"><span class="nav-ico">⌕</span><span data-i18n="nav.search">Recherche</span></a>
+  <a href="#/shelves" data-nav="shelves"><span class="nav-ico">▦</span><span data-i18n="nav.shelves">Rayons</span></a>
+  <a href="#/new" data-nav="new" class="accent"><span class="nav-ico">＋</span><span data-i18n="nav.add">Ajouter</span></a>
+  <a href="#/stats" data-nav="stats"><span class="nav-ico">▲</span><span data-i18n="nav.stats">Stats</span></a>
+  <button id="more-btn"><span class="nav-ico">⋯</span><span data-i18n="nav.more">Plus</span></button>
+</nav>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="modal-root" id="modal-root" hidden></div>
+
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

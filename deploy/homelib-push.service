@@ -1,0 +1,19 @@
+[Unit]
+Description=Push the Homelib database to the git remote
+Documentation=https://github.com/paucazou/homelib
+After=network-online.target homelib-web.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=philippe
+Group=philippe
+WorkingDirectory=/home/philippe/philippe/homelib
+Environment=HOMELIB_DB=/home/philippe/philippe/homelib/Library.db
+Environment=HOMELIB_REPO=/home/philippe/philippe/homelib
+Environment=HOMELIB_DUMP=/home/philippe/philippe/homelib/Library.sql
+Environment=HOMELIB_SSH_KEY=/home/philippe/.ssh/homelib_deploy
+Environment=HOMELIB_GIT_REMOTE=origin
+Environment=HOMELIB_GIT_BRANCH=master
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/philippe/philippe/homelib/.venv/bin/python -m deploy.sync
