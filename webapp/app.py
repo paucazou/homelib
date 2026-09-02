@@ -202,8 +202,7 @@ def create_app(config=None):
 
         with _catalog_lock:
             if not etag or _catalog_cache["etag"] != etag:
-                data = library.catalog()
-                data["usage"] = library.usage_counts()
+                data = library.catalog()          # includes the usage counts
                 data["version"] = etag
                 _catalog_cache["body"] = json.dumps(
                     data, ensure_ascii=False).encode("utf-8")

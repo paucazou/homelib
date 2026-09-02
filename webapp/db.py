@@ -156,31 +156,51 @@ class Library:
         return self._one("SELECT * FROM books WHERE id = ?", (book_id,))
 
     def catalog(self):
-        """The whole library, denormalised, for the client-side index.
+        """The whole library, denormalised, plus reference counts.
 
         The browser filters 3500 books per keystroke locally; asking a Pi Zero
         to do that over HTTP would be visibly slow.  So we ship it all once and
         let the ETag in app.py keep it cached.
+
+        Counting references happens in this same pass on purpose.  Doing it
+        separately meant walking all 3500 books twice and decoding every author
+        string twice, which on the armv6 board this runs on is a second of work
+        for a number we already had in hand.
         """
-        authors = {a["id"]: a for a in self.authors()}
+        author_rows = self.authors()
+        # Render "First Last" once per author rather than once per appearance:
+        # a well-represented author turns up in dozens of books.
+        labels = {a["id"]: self.author_label(a) for a in author_rows}
         publishers = {p["id"]: p["name"] for p in self.publishers()}
-        libraries = {l["id"]: l for l in self.libraries()}
-        boxes = {b["id"]: b for b in self.boxes()}
+        library_rows = self.libraries()
+        libraries = {l["id"]: l for l in library_rows}
+        box_rows = self.boxes()
+        boxes = {b["id"]: b for b in box_rows}
         deleted = self.deleted_book_ids()
+
+        author_use, publisher_use, box_use, library_use = {}, {}, {}, {}
 
         books = []
         for b in self.books():
             kind, ids = decode_authors(b["author"])
             box = boxes.get(b["box"])
             library = libraries.get(box["library"]) if box else None
+
+            for i in ids:
+                author_use[i] = author_use.get(i, 0) + 1
+            publisher_use[b["publisher"]] = publisher_use.get(b["publisher"], 0) + 1
+            box_use[b["box"]] = box_use.get(b["box"], 0) + 1
+            if library is not None:
+                library_use[library["id"]] = library_use.get(library["id"], 0) + 1
+
             books.append({
                 "id": b["id"],
                 "title": b["name"] or "",
                 "author_kind": kind,
                 "author_ids": ids,
-                # Pre-rendered "First Last" strings so the client never has to
-                # join; it only ever substring-matches them.
-                "authors": [self.author_label(authors[i]) for i in ids if i in authors],
+                # Pre-rendered names so the client never has to join; it only
+                # ever substring-matches them.
+                "authors": [labels[i] for i in ids if i in labels],
                 "publisher_id": b["publisher"],
                 "publisher": publishers.get(b["publisher"], ""),
                 "more": b["more"] or "",
@@ -194,11 +214,16 @@ class Library:
 
         return {
             "books": books,
-            "authors": [dict(a, label=self.author_label(a)) for a in authors.values()],
-            "publishers": self.publishers(),
+            "authors": [dict(a, label=labels[a["id"]]) for a in author_rows],
+            "publishers": [{"id": i, "name": n} for i, n in publishers.items()],
             "boxes": [dict(b, library_name=libraries.get(b["library"], {}).get("name", ""))
-                      for b in boxes.values()],
-            "libraries": self.libraries(),
+                      for b in box_rows],
+            "libraries": library_rows,
+            # Used to grey out never-referenced rows -- notably the authors left
+            # orphaned by a merge, which cannot be deleted (see the module
+            # docstring).
+            "usage": {"authors": author_use, "publishers": publisher_use,
+                      "boxes": box_use, "libraries": library_use},
         }
 
     @staticmethod
@@ -208,25 +233,6 @@ class Library:
 
     def books_in_box(self, box_id):
         return self._query("SELECT * FROM books WHERE box = ?", (box_id,))
-
-    def usage_counts(self):
-        """How many books point at each author / publisher / box / library.
-
-        Used to grey out never-referenced rows -- notably the authors left
-        orphaned by a merge, which we cannot delete (see module docstring).
-        """
-        counts = {"authors": {}, "publishers": {}, "boxes": {}, "libraries": {}}
-        box_to_lib = {b["id"]: b["library"] for b in self.boxes()}
-        for b in self.books():
-            _, ids = decode_authors(b["author"])
-            for i in ids:
-                counts["authors"][i] = counts["authors"].get(i, 0) + 1
-            counts["publishers"][b["publisher"]] = counts["publishers"].get(b["publisher"], 0) + 1
-            counts["boxes"][b["box"]] = counts["boxes"].get(b["box"], 0) + 1
-            lib = box_to_lib.get(b["box"])
-            if lib is not None:
-                counts["libraries"][lib] = counts["libraries"].get(lib, 0) + 1
-        return counts
 
     # --------------------------------------------------------------- history
 
