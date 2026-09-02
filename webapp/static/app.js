@@ -416,7 +416,11 @@ function combo(config) {
     const value = input.value.trim();
     close();
     const made = await config.onCreate(value);
-    if (made) { items = config.items; pick(made); }
+    // onCreate resolves null when the user cancelled the sub-dialog.
+    if (!made) { input.focus(); return; }
+    if (!items.some(i => i.id === made.id)) items = items.concat([made]);
+    config.items = items;
+    pick(made);
   }
 
   input.addEventListener('focus', open);
@@ -467,6 +471,9 @@ function combo(config) {
 
 /* ------------------------------------------------------------------ modals */
 
+/* A stack, not a single slot.  Adding a book you can create its author on the
+ * spot, exactly as the Qt dialogs did: the author window opens over the book
+ * window and the book window is still there underneath when it closes. */
 const modalStack = [];
 
 function openModal(config) {
@@ -491,10 +498,11 @@ function openModal(config) {
     body,
     (config.actions || []).length ? foot : null);
 
-  root.textContent = '';
+  // Hide whatever is underneath instead of discarding it.
+  if (modalStack.length) modalStack[modalStack.length - 1].node.hidden = true;
   root.appendChild(modal);
   root.hidden = false;
-  modalStack.push(config);
+  modalStack.push({ config: config, node: modal });
   const first = $('input, textarea, select, button.primary', modal);
   if (first && window.innerWidth > 820) setTimeout(() => first.focus(), 40);
   if (config.onOpen) config.onOpen(modal);
@@ -502,10 +510,16 @@ function openModal(config) {
 }
 
 function closeModal() {
-  const config = modalStack.pop();
-  $('#modal-root').hidden = true;
-  $('#modal-root').textContent = '';
-  if (config && config.onClose) config.onClose();
+  const top = modalStack.pop();
+  if (top) top.node.remove();
+  const below = modalStack[modalStack.length - 1];
+  if (below) {
+    below.node.hidden = false;
+  } else {
+    $('#modal-root').hidden = true;
+    $('#modal-root').textContent = '';
+  }
+  if (top && top.config.onClose) top.config.onClose();
 }
 
 /* Dismiss without running onClose.  Used when the route itself changes -- the
@@ -535,18 +549,21 @@ function confirmDialog(title, message, confirmLabel, run) {
 /* Every write goes through here so that a failure is reported the same way
  * everywhere, and the catalogue is always re-read afterwards -- the server is
  * the authority on what is now in the database, not our optimistic guess. */
-async function mutate(request, successMessage, undoRequest) {
+async function mutate(request, successMessage, options) {
   if (S.offline) { toast(t('app.offline'), 'error'); return null; }
+  options = options || {};
   try {
     const result = await api(request.path, {
       method: request.method || 'POST', body: request.body
     });
     await loadCatalog();
-    render();
+    // keepView is for a creation made from inside another dialog: re-rendering
+    // the route would tear down the form the user is still filling in.
+    if (!options.keepView) render();
     refreshSync();
     if (successMessage) {
-      toast(successMessage, null, undoRequest && {
-        label: t('app.undo'), run: () => mutate(undoRequest, t('app.saved'))
+      toast(successMessage, null, options.undo && {
+        label: t('app.undo'), run: () => mutate(options.undo, t('app.saved'))
       });
     }
     return result;
@@ -558,7 +575,15 @@ async function mutate(request, successMessage, undoRequest) {
 
 /* ------------------------------------------------------------ author dialog */
 
+/* `existing` may be a row being edited, or merely a prefill for a new entry --
+ * the combo boxes pass the half-typed name through.  An id is what separates
+ * the two; without this, "create" posted to /api/authors/null. */
 function authorDialog(existing, afterwards) {
+  const isEdit = !!(existing && existing.id);
+  const nested = !!afterwards;   // opened from another dialog still on screen
+  // save() closes the window itself, and onClose must not then report a
+  // cancellation -- the promise the combo is waiting on settles on first call.
+  let saving = false;
   const first = el('input', { type: 'text', value: existing ? existing.christian_name || '' : '' });
   const last = el('input', { type: 'text', value: existing ? existing.last_name || '' : '' });
   const body = el('div', {}, el('div', { class: 'grid-2' },
@@ -568,39 +593,54 @@ function authorDialog(existing, afterwards) {
   const save = async () => {
     const payload = { christian_name: first.value.trim(), last_name: last.value.trim() };
     if (!payload.christian_name && !payload.last_name) { first.focus(); return; }
+    saving = true;
     closeModal();
-    const result = await mutate(existing
+    const result = await mutate(isEdit
       ? { path: '/api/authors/' + existing.id, method: 'PUT', body: payload }
-      : { path: '/api/authors', body: payload }, t('app.saved'));
-    if (result && afterwards) afterwards(result.id, [payload.christian_name, payload.last_name].filter(Boolean).join(' '));
+      : { path: '/api/authors', body: payload }, t('app.saved'), { keepView: nested });
+    if (afterwards) {
+      afterwards(result && (result.id || existing.id),
+                 [payload.christian_name, payload.last_name].filter(Boolean).join(' '));
+    }
   };
   openModal({
-    title: existing ? t('author.edit') : t('author.new'), body: body,
+    title: isEdit ? t('author.edit') : t('author.new'), body: body,
+    onClose: () => { if (!saving && afterwards) afterwards(null); },
     actions: [{ label: t('app.cancel'), run: () => closeModal() },
               { label: t('app.save'), kind: 'primary', run: save }]
   });
 }
 
 function publisherDialog(existing, afterwards) {
+  const isEdit = !!(existing && existing.id);
+  const nested = !!afterwards;
+  let saving = false;
   const name = el('input', { type: 'text', value: existing ? existing.name || '' : '' });
   const body = el('label', { class: 'field' },
     el('span', { class: 'label', text: t('publisher.name') }), name);
   const save = async () => {
     if (!name.value.trim()) { name.focus(); return; }
+    const value = name.value.trim();
+    saving = true;
     closeModal();
-    const result = await mutate(existing
-      ? { path: '/api/publishers/' + existing.id, method: 'PUT', body: { name: name.value.trim() } }
-      : { path: '/api/publishers', body: { name: name.value.trim() } }, t('app.saved'));
-    if (result && afterwards) afterwards(result.id, name.value.trim());
+    const result = await mutate(isEdit
+      ? { path: '/api/publishers/' + existing.id, method: 'PUT', body: { name: value } }
+      : { path: '/api/publishers', body: { name: value } }, t('app.saved'),
+      { keepView: nested });
+    if (afterwards) afterwards(result && (result.id || existing.id), value);
   };
   openModal({
-    title: existing ? t('publisher.edit') : t('publisher.new'), body: body,
+    title: isEdit ? t('publisher.edit') : t('publisher.new'), body: body,
+    onClose: () => { if (!saving && afterwards) afterwards(null); },
     actions: [{ label: t('app.cancel'), run: () => closeModal() },
               { label: t('app.save'), kind: 'primary', run: save }]
   });
 }
 
 function libraryDialog(existing, afterwards) {
+  const isEdit = !!(existing && existing.id);
+  const nested = !!afterwards;
+  let saving = false;
   const name = el('input', { type: 'text', value: existing ? existing.name || '' : '' });
   const place = el('textarea', {}, existing ? existing.place || '' : '');
   const lines = el('input', { type: 'number', min: '1', max: '99',
@@ -632,20 +672,25 @@ function libraryDialog(existing, afterwards) {
     const payload = { name: name.value.trim(), place: place.value.trim(),
                       lines: +lines.value, columns: +columns.value };
     if (!payload.name || !payload.place) { name.focus(); return; }
+    saving = true;
     closeModal();
-    const result = await mutate(existing
+    const result = await mutate(isEdit
       ? { path: '/api/libraries/' + existing.id, method: 'PUT', body: payload }
-      : { path: '/api/libraries', body: payload }, t('app.saved'));
-    if (result && afterwards) afterwards(result.id, payload.name);
+      : { path: '/api/libraries', body: payload }, t('app.saved'), { keepView: nested });
+    if (afterwards) afterwards(result && (result.id || existing.id), payload.name);
   };
   openModal({
-    title: existing ? t('lib.edit') : t('lib.new'), body: body,
+    title: isEdit ? t('lib.edit') : t('lib.new'), body: body,
+    onClose: () => { if (!saving && afterwards) afterwards(null); },
     actions: [{ label: t('app.cancel'), run: () => closeModal() },
               { label: t('app.save'), kind: 'primary', run: save }]
   });
 }
 
 function boxDialog(existing, afterwards) {
+  const isEdit = !!(existing && existing.id);
+  const nested = !!afterwards;
+  let saving = false;
   const name = el('input', { type: 'text', value: existing ? existing.name || '' : '' });
   const line = el('input', { type: 'number', min: '1',
                              value: existing ? existing.line : 1 });
@@ -658,9 +703,7 @@ function boxDialog(existing, afterwards) {
     placeholder: t('box.library'),
     onCreate: value => new Promise(resolve => {
       libraryDialog({ name: value, place: '', lines: 3, columns: 1 },
-        () => resolve(null));
-      // The library dialog reloads the catalogue; the caller picks it up on
-      // reopening.  Resolving null here just leaves the field to be chosen.
+        (id, label) => resolve(id ? { id: id, label: label } : null));
     }),
     onChange: () => { fillColumns(); drawPreview(); }
   });
@@ -705,14 +748,21 @@ function boxDialog(existing, afterwards) {
     if (libCombo.invalid) { libCombo.focus(); return; }
     const payload = { name: name.value.trim(), library_id: libCombo.value,
                       line: +line.value, column: column.value };
+    saving = true;
     closeModal();
-    const result = await mutate(existing
+    const result = await mutate(isEdit
       ? { path: '/api/boxes/' + existing.id, method: 'PUT', body: payload }
-      : { path: '/api/boxes', body: payload }, t('app.saved'));
-    if (result && afterwards) afterwards(result.id, payload.name);
+      : { path: '/api/boxes', body: payload }, t('app.saved'), { keepView: nested });
+    if (afterwards) {
+      const id = result && (result.id || existing.id);
+      afterwards(id, id ? boxLabel(S.boxById[id] || { name: payload.name,
+        library: payload.library_id, column: payload.column, line: payload.line })
+        : payload.name);
+    }
   };
   openModal({
-    title: existing ? t('box.edit') : t('box.new'), body: body,
+    title: isEdit ? t('box.edit') : t('box.new'), body: body,
+    onClose: () => { if (!saving && afterwards) afterwards(null); },
     actions: [{ label: t('app.cancel'), run: () => closeModal() },
               { label: t('app.save'), kind: 'primary', run: save }]
   });
@@ -789,7 +839,7 @@ function bookDialog(book) {
         const parts = name.trim().split(/\s+/);
         const last = parts.length > 1 ? parts.pop() : parts[0];
         authorDialog({ id: null, christian_name: parts.join(' '), last_name: last },
-          (id, label) => resolve({ id: id, label: label }));
+          (id, label) => resolve(id ? { id: id, label: label } : null));
       })
     });
     const row = el('div', { class: 'author-row' }, box.node);
@@ -836,7 +886,8 @@ function bookDialog(book) {
     value: isEdit ? book.publisher_id : null,
     placeholder: t('book.publisher'),
     onCreate: name => new Promise(resolve => {
-      publisherDialog({ id: null, name: name }, (id, label) => resolve({ id: id, label: label }));
+      publisherDialog({ id: null, name: name },
+                      (id, label) => resolve(id ? { id: id, label: label } : null));
     })
   });
 
@@ -847,7 +898,7 @@ function bookDialog(book) {
     placeholder: t('book.box'),
     onCreate: name => new Promise(resolve => {
       boxDialog({ id: null, name: name, library: null, line: 1, column: 'A' },
-        (id, label) => resolve({ id: id, label: label }));
+        (id, label) => resolve(id ? { id: id, label: label } : null));
     }),
     onChange: drawBoxPreview
   });
@@ -968,7 +1019,7 @@ async function bookDetail(book) {
             t('app.delete'), () => mutate(
               { path: '/api/books/' + book.id, method: 'DELETE' },
               t('book.deleted'),
-              { path: '/api/books/' + book.id + '/restore' }));
+              { undo: { path: '/api/books/' + book.id + '/restore' } }));
         } },
     { label: t('app.edit'), kind: 'primary',
       run: () => { closeModalSilently(); bookDialog(book); } }
