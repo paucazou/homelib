@@ -189,26 +189,31 @@ def create_app(config=None):
     # ------------------------------------------------------------- catalogue
 
     # Building the catalogue means reading every table and encoding 1.2 MB of
-    # JSON.  That is 40 ms on a laptop and a second or two on the Pi Zero this
-    # runs on, so the encoded bytes are kept until the database file changes.
-    _catalog_cache = {"etag": None, "body": None}
+    # JSON.  That is 20 ms on a laptop and well over a second on the Pi Zero
+    # this runs on, so both the structure and the encoded bytes are kept until
+    # the database file changes.  Statistics and exports read the same copy --
+    # rebuilding it per page was most of what made those pages slow.
+    _catalog_cache = {"etag": None, "data": None, "body": None}
     _catalog_lock = threading.Lock()
 
-    @app.route("/api/catalog")
-    def api_catalog():
+    def cached_catalog():
+        """Returns (etag, data, encoded_body), building only when stale."""
         etag = catalog_etag()
-        if etag and request.headers.get("If-None-Match") == etag:
-            return Response(status=304)
-
         with _catalog_lock:
             if not etag or _catalog_cache["etag"] != etag:
                 data = library.catalog()          # includes the usage counts
                 data["version"] = etag
+                _catalog_cache["data"] = data
                 _catalog_cache["body"] = json.dumps(
                     data, ensure_ascii=False).encode("utf-8")
                 _catalog_cache["etag"] = etag
-            body = _catalog_cache["body"]
+            return etag, _catalog_cache["data"], _catalog_cache["body"]
 
+    @app.route("/api/catalog")
+    def api_catalog():
+        if request.headers.get("If-None-Match") == catalog_etag():
+            return Response(status=304)
+        etag, _, body = cached_catalog()
         response = Response(body, mimetype="application/json")
         if etag:
             response.headers["ETag"] = etag
@@ -404,7 +409,7 @@ def create_app(config=None):
 
     @app.route("/api/stats")
     def api_stats():
-        catalog = library.catalog()
+        catalog = cached_catalog()[1]
         books = catalog["books"]
         active = [b for b in books if not b["deleted"]]
         sums = volmod.load_sums(app.config["SUMS_PATH"])
@@ -462,7 +467,7 @@ def create_app(config=None):
     @app.route("/api/export")
     def api_export():
         """Generalises export.py: author :: title, alphabetically, per library."""
-        catalog = library.catalog()
+        catalog = cached_catalog()[1]
         books = [b for b in catalog["books"] if not b["deleted"]]
         wanted = request.args.get("library")
         if wanted and wanted != "all":
