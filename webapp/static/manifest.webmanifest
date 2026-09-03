@@ -2,21 +2,21 @@
   "name": "Homelib — la bibliothèque de la maison",
   "short_name": "Homelib",
   "description": "Chercher un livre, savoir sur quelle étagère il se trouve, et cataloguer les nouveaux.",
-  "start_url": "/#/search",
-  "scope": "/",
+  "start_url": "./#/search",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f7f4ee",
   "theme_color": "#7a5c3e",
   "lang": "fr",
   "icons": [
-    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/static/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "./static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./static/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "./static/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
-    { "name": "Nouveau livre", "url": "/#/new" },
-    { "name": "Rayonnages", "url": "/#/shelves" }
+    { "name": "Nouveau livre", "url": "./#/new" },
+    { "name": "Rayonnages", "url": "./#/shelves" }
   ]
 }

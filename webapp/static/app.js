@@ -112,13 +112,20 @@ function toast(message, kind, action) {
 
 /* -------------------------------------------------------------------- api */
 
+// The mount point, handed over by the page: "" when the application answers at
+// the root of port 8888, "/homelib" when nginx serves it beside the
+// thermometer.  Every absolute path below is written from the application's
+// point of view and passed through here, so neither address needs its own code.
+const BASE = window.HOMELIB_BASE || '';
+function url(path) { return BASE + path; }
+
 async function api(path, options) {
   const opts = Object.assign({ headers: {} }, options || {});
   if (opts.body !== undefined && typeof opts.body !== 'string') {
     opts.body = JSON.stringify(opts.body);
     opts.headers['Content-Type'] = 'application/json';
   }
-  const response = await fetch(path, opts);
+  const response = await fetch(url(path), opts);
   const text = await response.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
@@ -1825,8 +1832,8 @@ function viewExport() {
   const preview = el('pre', { class: 'card panel',
     style: 'max-height:420px;overflow:auto;white-space:pre-wrap;font-size:.82rem' });
 
-  const url = () => '/api/export?library=' + libSelect.value
-    + '&format=' + formatSelect.value + (withDeleted.checked ? '&deleted=1' : '');
+  const exportUrl = () => url('/api/export?library=' + libSelect.value
+    + '&format=' + formatSelect.value + (withDeleted.checked ? '&deleted=1' : ''));
 
   view.appendChild(el('h1', { text: t('export.title') }));
   view.appendChild(el('p', { class: 'hint', text: t('export.help') }));
@@ -1836,18 +1843,18 @@ function viewExport() {
       el('label', { class: 'field' }, el('span', { class: 'label', text: t('export.format') }), formatSelect)),
     el('div', { class: 'checkrow' }, el('label', {}, withDeleted, t('export.deleted'))),
     el('div', { class: 'btn-row' },
-      el('a', { class: 'btn primary', href: url(), text: '↧ ' + t('export.download'),
+      el('a', { class: 'btn primary', href: exportUrl(), text: '↧ ' + t('export.download'),
                 id: 'export-dl', download: '' }),
       el('button', { class: 'btn', text: t('export.preview'), onclick: async () => {
         preview.textContent = '…';
         try {
-          const response = await fetch(url());
+          const response = await fetch(exportUrl());
           preview.textContent = (await response.text()).slice(0, 40000);
         } catch (err) { preview.textContent = err.message; }
       } }))));
   view.appendChild(preview);
 
-  const sync = () => { $('#export-dl').href = url(); };
+  const sync = () => { $('#export-dl').href = exportUrl(); };
   libSelect.addEventListener('change', sync);
   formatSelect.addEventListener('change', sync);
   withDeleted.addEventListener('change', sync);
@@ -1934,7 +1941,7 @@ async function boot() {
   // The offline copy above works over plain http; a service worker needs a
   // secure context, so this quietly does nothing until the site is on https.
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register(url('/sw.js'), { scope: BASE + '/' }).catch(() => {});
   }
 }
 

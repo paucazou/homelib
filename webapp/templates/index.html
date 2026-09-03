@@ -10,6 +10,9 @@
 <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<!-- Where the application is mounted: "" on port 8888, "/homelib" behind the
+     thermometer's nginx.  The scripts below build every URL from it. -->
+<script>window.HOMELIB_BASE = {{ request.script_root|tojson }};</script>
 </head>
 <body>
 

@@ -77,6 +77,20 @@ sudo systemctl restart homelib-web.service
 say "nginx"
 sudo install -m 644 "$REPO/deploy/nginx-homelib.conf" /etc/nginx/sites-available/homelib
 sudo ln -sfn /etc/nginx/sites-available/homelib /etc/nginx/sites-enabled/homelib
+
+# Second door: /homelib on the thermometer's port 80.  The location block lives
+# in its own snippet, and the thermo site is only ever given one "include" line
+# -- so this can be run again, and taking homelib back out is one line removed.
+sudo install -d -m 755 /etc/nginx/snippets
+sudo install -m 644 "$REPO/deploy/nginx-homelib-location.conf" \
+     /etc/nginx/snippets/homelib-location.conf
+THERMO=/etc/nginx/sites-available/thermo
+if [ -f "$THERMO" ]; then
+    sudo python3 "$REPO/deploy/add_homelib_location.py" "$THERMO"
+else
+    echo "no thermo site here -- /homelib on port 80 skipped"
+fi
+
 sudo nginx -t
 sudo systemctl reload nginx
 
@@ -87,6 +101,11 @@ for i in $(seq 1 40); do
 done
 curl -fsS "http://127.0.0.1:$PORT/healthz" && echo
 echo
-echo "Homelib is at  http://$(hostname):$PORT/  (and http://$(hostname).local:$PORT/)"
+if curl -fsS "http://127.0.0.1/homelib/healthz" >/dev/null 2>&1; then
+    echo "port 80 /homelib answers too"
+fi
+echo
+echo "Homelib is at  http://$(hostname)/homelib/"
+echo "           and http://$(hostname):$PORT/   (what dbupdater.py uses)"
 echo "Logs:          journalctl -u homelib-web -f"
 echo "Daily push:    systemctl list-timers homelib-push"

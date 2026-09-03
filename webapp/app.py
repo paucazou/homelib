@@ -39,6 +39,44 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, os.pardir))
 
 
+class PrefixMiddleware:
+    """Lets the same process answer at the site root and under a sub-path.
+
+    The application is reachable two ways: http://palantir:8888/, which the
+    desktop client has always used and must keep working, and
+    http://palantir/homelib, served by the thermometer's nginx alongside its own
+    pages.  Rather than run it twice, nginx sends "X-Forwarded-Prefix: /homelib"
+    on the second one, and this moves that prefix out of PATH_INFO and into
+    SCRIPT_NAME -- which is where WSGI expects the mount point, and what makes
+    url_for() emit /homelib/static/app.js instead of /static/app.js.
+
+    The header comes from our own nginx.  It is still validated, because a
+    request arriving directly on 8888 could carry one too, and a prefix out of
+    a stranger's hands would end up inside the URLs of every page we serve.
+    """
+
+    ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_/")
+
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        prefix = (environ.get("HTTP_X_FORWARDED_PREFIX") or "").rstrip("/")
+        # A single leading slash: "//host" is a protocol-relative URL, and one
+        # of those in SCRIPT_NAME would send every asset link off to a machine
+        # of the sender's choosing.
+        if prefix.startswith("/") and not prefix.startswith("//") \
+                and ".." not in prefix and not set(prefix) - self.ALLOWED:
+            path = environ.get("PATH_INFO", "")
+            rest = path[len(prefix):] if path.startswith(prefix) else None
+            # Only on a whole path segment: with prefix "/home", "/homelib/x"
+            # starts with it but is not inside it.
+            if rest is not None and (rest == "" or rest.startswith("/")):
+                environ["PATH_INFO"] = rest or "/"
+                environ["SCRIPT_NAME"] = environ.get("SCRIPT_NAME", "") + prefix
+        return self.wsgi_app(environ, start_response)
+
+
 class ApiError(Exception):
     """A client mistake, reported as a message the interface can show."""
 
@@ -50,6 +88,7 @@ class ApiError(Exception):
 
 def create_app(config=None):
     app = Flask(__name__, static_folder="static", template_folder="templates")
+    app.wsgi_app = PrefixMiddleware(app.wsgi_app)
     app.config.update(
         DB_PATH=os.environ.get("HOMELIB_DB", os.path.join(REPO, "Library.db")),
         REPO_DIR=os.environ.get("HOMELIB_REPO", REPO),

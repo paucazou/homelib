@@ -9,14 +9,20 @@
  * is the shell, so the page itself will not open without the server.
  */
 
-const VERSION = 'homelib-v1';
+const VERSION = 'homelib-v2';
+
+// Where the application is mounted, worked out from this file's own address:
+// '/' on port 8888, '/homelib/' when nginx serves it beside the thermometer.
+// Everything below is written against BASE, so one worker covers both, and the
+// browser gives each address its own registration.
+const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const SHELL = [
-  '/',
-  '/static/app.css',
-  '/static/app.js',
-  '/static/i18n.js',
-  '/static/icon.svg',
-  '/manifest.webmanifest'
+  BASE,
+  BASE + 'static/app.css',
+  BASE + 'static/app.js',
+  BASE + 'static/i18n.js',
+  BASE + 'static/icon.svg',
+  BASE + 'manifest.webmanifest'
 ];
 
 self.addEventListener('install', event => {
@@ -30,7 +36,10 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+        // Only our own: cache storage is shared with everything else served
+        // from this host, and the thermometer's pages are next door.
+        keys.filter(k => k.startsWith('homelib-') && k !== VERSION)
+            .map(k => caches.delete(k))))
       .then(() => self.clients.claim()));
 });
 
@@ -43,7 +52,7 @@ self.addEventListener('fetch', event => {
   // The catalogue: fresh when we can reach the Pi, the last copy when we
   // cannot.  Never the other way round -- a stale shelf location is the one
   // thing this application must not show.
-  if (url.pathname === '/api/catalog') {
+  if (url.pathname === BASE + 'api/catalog') {
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -58,14 +67,15 @@ self.addEventListener('fetch', event => {
   }
 
   // Anything else live goes to the network only.
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.startsWith(BASE + 'api/')) return;
 
   // The shell: answer from the cache at once, and refresh it in the background.
   // Plain cache-first would pin whatever was cached the day it was installed,
   // so a redeploy would never reach a phone that had already installed the app;
   // this way the next opening picks up the new version by itself.
-  const cacheable = url.pathname === '/' || url.pathname.startsWith('/static/')
-                    || url.pathname === '/manifest.webmanifest';
+  const cacheable = url.pathname === BASE
+                    || url.pathname.startsWith(BASE + 'static/')
+                    || url.pathname === BASE + 'manifest.webmanifest';
   event.respondWith(
     caches.match(request).then(hit => {
       const network = fetch(request).then(response => {
@@ -74,7 +84,7 @@ self.addEventListener('fetch', event => {
           caches.open(VERSION).then(cache => cache.put(request, copy));
         }
         return response;
-      }).catch(() => hit || caches.match('/'));
+      }).catch(() => hit || caches.match(BASE));
       return hit || network;
     }));
 });
