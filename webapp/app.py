@@ -77,8 +77,23 @@ def create_app(config=None):
         # already on disk either way -- this is about a readable history.
         atexit.register(sync.stop)
 
+    _added = dbmod.ensure_schema(app.config["DB_PATH"])
     library = dbmod.Library(app.config["DB_PATH"],
                             on_write=sync.note if app.config["GIT_ENABLED"] else None)
+
+    # Fill in any volume count that is still unknown, from the description.
+    # Only NULLs are touched, so a number given by hand always stands and
+    # re-running this costs nothing.
+    _sums = volmod.load_sums(app.config["SUMS_PATH"])
+    _filled, _left = library.backfill_volumes(lambda more: volmod.count(more, _sums))
+    if _filled:
+        log.info("volumes established for %d book(s), %d still unknown",
+                 _filled, _left)
+    # The migration changes the database, so it deserves a commit of its own
+    # rather than being folded silently into whatever is edited next.
+    if (_added or _filled) and app.config["GIT_ENABLED"]:
+        sync.note("colonne « volumes » : {} livre(s) renseigné(s), {} à préciser"
+                  .format(_filled, _left))
     app.library = library
     app.sync = sync
 
@@ -103,7 +118,11 @@ def create_app(config=None):
             raise ApiError("Le champ {} doit être un nombre".format(key))
 
     def read_authors(data):
-        """Validate the three ways a book can be attributed."""
+        """Validate the three ways a book can be attributed.
+
+        Raises ApiError, never ValueError: a blanket ValueError handler used to
+        turn genuine internal faults into 400s and hid their tracebacks.
+        """
         kind = data.get("author_kind", "named")
         if kind in (dbmod.ANONYMOUS, dbmod.COLLECTIVE):
             return kind, []
@@ -123,6 +142,21 @@ def create_app(config=None):
             raise ApiError("Auteur inconnu : {}".format(unknown[0]))
         return "named", ids
 
+
+    def read_volumes(data, more):
+        """An explicit count wins; otherwise read it off the description."""
+        raw = data.get("volumes")
+        if raw in (None, ""):
+            count, sure = volmod.count(more, volmod.load_sums(app.config["SUMS_PATH"]))
+            return count if sure else None
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            raise ApiError("Nombre de volumes invalide")
+        if value < 1:
+            raise ApiError("Un livre compte au moins un volume")
+        return value
+
     def check_exists(table, item_id, label):
         rows = {"boxes": library.boxes, "publisher": library.publishers,
                 "libraries": library.libraries, "authors": library.authors}[table]()
@@ -137,8 +171,12 @@ def create_app(config=None):
         if not (1 <= line <= (lib["lines"] or 0)):
             raise ApiError("Ligne {} hors de « {} » (1 à {})".format(
                 line, lib["name"], lib["lines"]))
+        # A membership test on the string would be a substring search, letting
+        # "" and "AB" through -- and a shelf whose column is neither a letter
+        # nor within the grid has no cell to be drawn in, so it vanishes.
         column = (column or "").upper()
-        if column not in dbmod.ALPHABET[:lib["columns"] or 0]:
+        allowed = dbmod.ALPHABET[:lib["columns"] or 0]
+        if len(column) != 1 or column not in list(allowed):
             raise ApiError("Colonne {} hors de « {} » (A à {})".format(
                 column or "?", lib["name"],
                 dbmod.ALPHABET[(lib["columns"] or 1) - 1]))
@@ -156,10 +194,6 @@ def create_app(config=None):
     @app.errorhandler(ApiError)
     def _api_error(exc):
         return jsonify({"error": exc.message}), exc.status
-
-    @app.errorhandler(ValueError)
-    def _value_error(exc):
-        return jsonify({"error": str(exc)}), 400
 
     @app.errorhandler(500)
     def _server_error(exc):
@@ -211,12 +245,17 @@ def create_app(config=None):
 
     @app.route("/api/catalog")
     def api_catalog():
-        if request.headers.get("If-None-Match") == catalog_etag():
+        # set_etag / if_none_match rather than a raw header: nginx weakens an
+        # ETag to W/"..." when it gzips a response, and drops an unquoted one
+        # altogether -- which it was doing, so no browser ever revalidated and
+        # the whole catalogue came down again on every single page load.
+        current = catalog_etag()
+        if current and request.if_none_match.contains_weak(current):
             return Response(status=304)
         etag, _, body = cached_catalog()
         response = Response(body, mimetype="application/json")
         if etag:
-            response.headers["ETag"] = etag
+            response.set_etag(etag)
             # Always revalidate: the catalogue changes the moment a book is
             # saved, and a stale shelf number is worse than a quick check.
             response.headers["Cache-Control"] = "no-cache, must-revalidate"
@@ -228,11 +267,13 @@ def create_app(config=None):
     def api_add_book():
         data = payload()
         kind, ids = read_authors(data)
+        more = (data.get("more") or "").strip()
         book_id = library.add_book(
             need(data, "title"), kind, ids,
             check_exists("publisher", need_int(data, "publisher_id"), "Éditeur"),
-            (data.get("more") or "").strip(),
-            check_exists("boxes", need_int(data, "box_id"), "Étagère"))
+            more,
+            check_exists("boxes", need_int(data, "box_id"), "Étagère"),
+            read_volumes(data, more))
         return jsonify({"id": book_id}), 201
 
     @app.route("/api/books/<int:book_id>", methods=["PUT"])
@@ -241,11 +282,13 @@ def create_app(config=None):
             raise ApiError("Livre inconnu", 404)
         data = payload()
         kind, ids = read_authors(data)
+        more = (data.get("more") or "").strip()
         library.update_book(
             book_id, need(data, "title"), kind, ids,
             check_exists("publisher", need_int(data, "publisher_id"), "Éditeur"),
-            (data.get("more") or "").strip(),
-            check_exists("boxes", need_int(data, "box_id"), "Étagère"))
+            more,
+            check_exists("boxes", need_int(data, "box_id"), "Étagère"),
+            read_volumes(data, more))
         return jsonify({"id": book_id})
 
     @app.route("/api/books/<int:book_id>", methods=["DELETE"])
@@ -290,6 +333,10 @@ def create_app(config=None):
 
     @app.route("/api/boxes/<int:box_id>", methods=["PUT"])
     def api_update_box(box_id):
+        # Without this an UPDATE that matches nothing still answers 200, the
+        # interface says "Enregistré", and a git commit is queued for a change
+        # that was never made.
+        check_exists("boxes", box_id, "Étagère")
         data = payload()
         library_id = check_exists("libraries", need_int(data, "library_id"),
                                   "Bibliothèque")
@@ -321,15 +368,24 @@ def create_app(config=None):
 
     @app.route("/api/libraries/<int:library_id>", methods=["PUT"])
     def api_update_library(library_id):
+        check_exists("libraries", library_id, "Bibliothèque")
         data = payload()
         lines, columns = need_int(data, "lines"), need_int(data, "columns")
         if not 1 <= lines <= 99 or not 1 <= columns <= 26:
             raise ApiError("Dimensions invalides (lignes 1-99, colonnes 1-26)")
         # Shrinking a library would strand the shelves outside the new grid.
+        def outside(box):
+            if box["line"] > lines:
+                return True
+            try:
+                return dbmod.column_index(box["column"]) >= columns
+            except ValueError:
+                # A column that is not a letter is already unplaceable; block
+                # the resize rather than crash on it.
+                return True
+
         stranded = [b for b in library.boxes()
-                    if b["library"] == library_id
-                    and (b["line"] > lines
-                         or dbmod.column_index(b["column"]) >= columns)]
+                    if b["library"] == library_id and outside(b)]
         if stranded:
             raise ApiError(
                 "Impossible de réduire : {} étagère(s) se retrouveraient hors "
@@ -352,6 +408,7 @@ def create_app(config=None):
 
     @app.route("/api/authors/<int:author_id>", methods=["PUT"])
     def api_update_author(author_id):
+        check_exists("authors", author_id, "Auteur")
         data = payload()
         first = (data.get("christian_name") or "").strip()
         last = (data.get("last_name") or "").strip()
@@ -378,6 +435,7 @@ def create_app(config=None):
 
     @app.route("/api/publishers/<int:publisher_id>", methods=["PUT"])
     def api_update_publisher(publisher_id):
+        check_exists("publisher", publisher_id, "Éditeur")
         library.update_publisher(publisher_id, need(payload(), "name"))
         return jsonify({"id": publisher_id})
 
@@ -412,8 +470,10 @@ def create_app(config=None):
         catalog = cached_catalog()[1]
         books = catalog["books"]
         active = [b for b in books if not b["deleted"]]
-        sums = volmod.load_sums(app.config["SUMS_PATH"])
-        total_volumes, unresolved = volmod.count_books(active, sums)
+        # The stored column is the authority now; a book without one counts as
+        # a single volume and is listed for someone to confirm.
+        total_volumes = sum(b["volumes"] or 1 for b in active)
+        unknown = [b for b in active if b["volumes"] is None]
 
         by_library, by_box, by_author, by_publisher = {}, {}, {}, {}
         for b in active:
@@ -441,26 +501,40 @@ def create_app(config=None):
             "by_box": top(by_box, 25),
             "by_author": top(by_author),
             "by_publisher": top(by_publisher),
-            "unresolved_volumes": unresolved,
+            "unresolved_volumes": [
+                {"id": b["id"], "title": b["title"], "text": b["more"]}
+                for b in unknown],
         })
 
     @app.route("/api/volumes/resolve", methods=["POST"])
     def api_resolve_volumes():
-        """Record how many volumes a free-text description means.
+        """Record how many volumes a book amounts to.
 
-        Written into the same sums.csv the desktop volumes.py reads, keyed by
-        the same md5, so the answer is given once for both programs.
+        The answer goes into the book's own column, and -- when the count was
+        read off a description -- into sums.csv as well, keyed by the same md5
+        the desktop volumes.py uses, so it is only ever asked once.
         """
         data = payload()
-        digest = need(data, "hash")
+        ids = data.get("book_ids") or ([data["book_id"]] if data.get("book_id") else [])
+        if not ids:
+            raise ApiError("Aucun livre indiqué")
         try:
             n = int(need(data, "count"))
         except (TypeError, ValueError):
             raise ApiError("Nombre de volumes invalide")
         if n < 1:
             raise ApiError("Un livre compte au moins un volume")
-        volmod.record_sum(app.config["SUMS_PATH"], digest, n)
-        return jsonify({"hash": digest, "count": n})
+
+        known = {b["id"] for b in library.books()}
+        unknown = [i for i in ids if int(i) not in known]
+        if unknown:
+            raise ApiError("Livre inconnu : {}".format(unknown[0]))
+
+        library.set_volumes(ids, n)
+        text = data.get("text")
+        if text:
+            volmod.record_sum(app.config["SUMS_PATH"], volmod.text_hash(text), n)
+        return jsonify({"books": len(ids), "count": n})
 
     # ----------------------------------------------------------------- export
 

@@ -38,7 +38,8 @@ class GitError(RuntimeError):
 
 class GitSync:
     def __init__(self, repo_dir, db_path, dump_path, remote="origin",
-                 branch="master", debounce=120, max_delay=600, ssh_key=None):
+                 branch="master", debounce=120, max_delay=600, ssh_key=None,
+                 retry_base=60):
         self.repo_dir = os.path.abspath(repo_dir)
         self.db_path = os.path.abspath(db_path)
         self.dump_path = os.path.abspath(dump_path)
@@ -47,8 +48,14 @@ class GitSync:
         self.debounce = debounce
         self.max_delay = max_delay
         self.ssh_key = ssh_key
+        # After a failure the pending work is already overdue, so without a
+        # pause the loop would retry as fast as the disk allows.
+        self.retry_base = retry_base
 
         self._lock = threading.Lock()
+        self._commit_lock = threading.RLock()
+        self._failures = 0
+        self._retry_at = None
         self._pending = []           # change summaries awaiting a commit
         self._first_pending_at = None
         self._last_note_at = None
@@ -123,10 +130,19 @@ class GitSync:
         return "{}\n\n{}\n".format(title, body) if len(summaries) > 1 else title
 
     def commit(self):
-        """Commit whatever is pending.  Returns the summaries committed."""
+        """Commit whatever is pending.  Returns the summaries committed.
+
+        Serialised by its own lock: the debounce thread, a POST /api/sync and
+        the shutdown flush can all reach here at once, and two `git commit`
+        runs in one repository collide on index.lock.
+        """
+        with self._commit_lock:
+            return self._commit()
+
+    def _commit(self):
         with self._lock:
             summaries, self._pending = self._pending, []
-            self._first_pending_at = None
+            first_at, self._first_pending_at = self._first_pending_at, None
         if not summaries:
             return []
         try:
@@ -140,14 +156,27 @@ class GitSync:
             self._git("commit", "-m", self._commit_message(summaries))
             self.last_commit_at = datetime.datetime.now()
             self.last_error = None
+            self._failures = 0
+            self._retry_at = None
             log.info("committed %d change(s)", len(summaries))
             return summaries
         except (GitError, OSError, sqlite3.Error) as exc:
-            # Put the summaries back so the next attempt still describes them.
+            # Put the summaries back so the next attempt still describes them --
+            # and with them the timestamp they were queued at.  Restoring the
+            # list but not the timestamp left _run subtracting from None, which
+            # killed the committer thread outright and silently stopped every
+            # later commit and push.
             with self._lock:
                 self._pending = summaries + self._pending
+                if self._first_pending_at is None:
+                    self._first_pending_at = first_at or datetime.datetime.now()
+                if self._last_note_at is None:
+                    self._last_note_at = self._first_pending_at
+            self._failures += 1
+            backoff = min(self.retry_base * (2 ** (self._failures - 1)), 900)
+            self._retry_at = datetime.datetime.now() + datetime.timedelta(seconds=backoff)
             self.last_error = str(exc)
-            log.error("commit failed: %s", exc)
+            log.error("commit failed (retry in %ss): %s", backoff, exc)
             return []
 
     def _run(self):
@@ -159,17 +188,26 @@ class GitSync:
         loop wakes, and the deadlines are recomputed from it.
         """
         while not self._stop.is_set():
-            with self._lock:
-                if self._pending:
-                    now = datetime.datetime.now()
-                    idle = (now - self._last_note_at).total_seconds()
-                    age = (now - self._first_pending_at).total_seconds()
-                    wait = min(self.debounce - idle, self.max_delay - age)
-                else:
-                    wait = None
+            try:
+                with self._lock:
+                    if self._pending:
+                        now = datetime.datetime.now()
+                        started = self._first_pending_at or now
+                        last = self._last_note_at or now
+                        wait = min(self.debounce - (now - last).total_seconds(),
+                                   self.max_delay - (now - started).total_seconds())
+                        if self._retry_at:
+                            wait = max(wait, (self._retry_at - now).total_seconds())
+                    else:
+                        wait = None
 
-            if wait is not None and wait <= 0:
-                self.commit()
+                if wait is not None and wait <= 0:
+                    self.commit()
+                    continue
+            except Exception as exc:      # never let this thread die
+                self.last_error = str(exc)
+                log.exception("commit loop error")
+                self._stop.wait(30)
                 continue
 
             # No pending work: wake on the next write, with a slow tick as a

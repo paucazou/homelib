@@ -210,7 +210,7 @@ h3 { font-size: 1rem; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--rule)); }
 .btn.danger:hover { background: var(--danger-soft); }
-.btn.small { min-height: 30px; padding: 0 10px; font-size: .8rem; }
+.btn.small { min-height: 32px; padding: 0 12px; font-size: .82rem; }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--ink-soft); }
 .btn.ghost:hover { background: var(--accent-soft); color: var(--ink); }
 
@@ -345,6 +345,18 @@ td.more { color: var(--ink-faint); font-size: .84rem; white-space: pre-wrap; }
 /* ------------------------------------------------------------------- lists */
 
 .rows { border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--card); }
+
+/* A box and its library plan side by side: the list takes the room left over,
+   and may scroll sideways inside itself rather than under the plan. */
+.box-layout { display: flex; align-items: flex-start; gap: 16px; margin-top: 12px; }
+.box-layout > .box-books { flex: 1 1 0; min-width: 0; }
+.box-layout > .box-plan { flex: 0 0 auto; max-width: min(42%, 380px); }
+.table-scroll { overflow-x: auto; }
+.table-scroll table.results { min-width: 560px; }
+/* An overflow container is its own scrollport, so the header must stick to the
+   top of that, not to the page's topbar offset -- which pushed it 52px down and
+   straight over the first row. */
+.table-scroll table.results th { top: 0; }
 .row {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 12px; border-bottom: 1px solid var(--rule);
@@ -354,6 +366,7 @@ td.more { color: var(--ink-faint); font-size: .84rem; white-space: pre-wrap; }
 .row .grow { flex: 1; min-width: 0; }
 .row .name { font-size: .93rem; }
 .row .sub { color: var(--ink-faint); font-size: .8rem; }
+.row .btn { flex: none; }
 .row.orphan .name { color: var(--ink-faint); font-style: italic; }
 .row input[type=checkbox] { width: 17px; height: 17px; flex: none; accent-color: var(--accent); }
 
@@ -432,7 +445,12 @@ td.more { color: var(--ink-faint); font-size: .84rem; white-space: pre-wrap; }
 .bar .bf { height: 100%; background: var(--accent); border-radius: 999px; }
 .bar .bv { font-variant-numeric: tabular-nums; color: var(--ink-faint); font-size: .8rem; }
 
-.cols-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.cols-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+           gap: 16px; }
+/* Grid and flex children default to min-width:auto, which stops anything wide
+   -- a table above all -- from shrinking, so it overflows its track and slides
+   under whatever sits beside it. */
+.cols-2 > * { min-width: 0; }
 
 /* ------------------------------------------------------------------ toasts */
 
@@ -515,8 +533,11 @@ td.more { color: var(--ink-faint); font-size: .84rem; white-space: pre-wrap; }
   .bottomnav a.active { color: var(--accent); }
   .bottomnav a.accent .nav-ico { color: var(--accent); }
 
-  table.results { display: none; }
+  table.results, .table-scroll { display: none; }
   .cards { display: block; }
+  .box-layout { flex-direction: column; }
+  .box-layout > .box-plan { order: -1; max-width: 100%; align-self: stretch; }
+  .row .btn.small { min-height: 40px; }
   .filters { grid-template-columns: 1fr 1fr; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .modal { width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0;

@@ -711,7 +711,10 @@ function boxDialog(existing, afterwards) {
   function currentLibrary() { return S.libById[libCombo.value]; }
   function fillColumns() {
     const lib = currentLibrary();
-    const wanted = existing ? existing.column : column.value;
+    // Keep what is on screen once the select has been built; using the stored
+    // letter every time meant picking column C and then correcting the library
+    // silently put the shelf back in its original column.
+    const wanted = column.value || (existing ? existing.column : '') || 'A';
     column.textContent = '';
     const n = lib ? lib.columns || 1 : 1;
     for (let i = 0; i < n; i++) {
@@ -779,6 +782,9 @@ function bookDialog(book) {
   const isEdit = !!book;
   const title = el('input', { type: 'text', value: isEdit ? book.title : '' });
   const details = el('textarea', {}, isEdit ? book.more : '');
+  const volumes = el('input', { type: 'number', min: '1', inputmode: 'numeric',
+    placeholder: t('book.volumes_auto'),
+    value: isEdit && book.volumes != null ? book.volumes : '' });
 
   /* --- ISBN pre-fill ------------------------------------------------- */
   const isbnInput = el('input', { type: 'text', placeholder: '978…',
@@ -862,8 +868,13 @@ function bookDialog(book) {
   function setAuthorsFromNames(names) {
     authorRows.textContent = ''; rows.length = 0;
     names.forEach(name => {
-      const match = S.data.authors.find(a => norm(a.label) === norm(name))
-        || S.data.authors.find(a => norm(a.last_name) && norm(name).includes(norm(a.last_name)));
+      // Match the whole name, or a surname that is genuinely the last word of
+    // it.  A plain substring test made "Jean Leroy" select the existing author
+    // "Roy", and the book would be saved credited to them.
+    const words = norm(name).split(/\s+/).filter(Boolean);
+    const surname = words[words.length - 1];
+    const match = S.data.authors.find(a => norm(a.label) === norm(name))
+        || S.data.authors.find(a => norm(a.last_name) && norm(a.last_name) === surname);
       const box = addAuthorRow(match ? match.id : null);
       if (!match) box.input.value = name;
     });
@@ -938,6 +949,10 @@ function bookDialog(book) {
       el('span', { class: 'label', text: t('book.publisher') }), publisherCombo.node),
     el('div', { class: 'field' },
       el('span', { class: 'label', text: t('book.box') }), boxCombo.node, boxPreview),
+    el('div', { class: 'grid-2' },
+      el('label', { class: 'field' },
+        el('span', { class: 'label', text: t('book.volumes') }), volumes,
+        el('p', { class: 'hint', text: t('book.volumes_hint') }))),
     el('label', { class: 'field' },
       el('span', { class: 'label', text: t('book.details') }), details));
 
@@ -961,11 +976,13 @@ function bookDialog(book) {
     const payload = {
       title: title.value.trim(), author_kind: kind, author_ids: ids,
       publisher_id: publisherCombo.value, box_id: boxCombo.value,
-      more: details.value
+      more: details.value,
+      // Empty means "work it out from the description".
+      volumes: volumes.value.trim() === '' ? null : +volumes.value
     };
     const cameFromNew = location.hash === '#/new';
     closeModalSilently();
-    if (cameFromNew) history.back();
+    if (cameFromNew) leaveRoute('#/search');
     // On an edit the hash is still #/book/<id>, so mutate's render reopens the
     // detail with the new values -- you see what you just saved.
     await mutate(isEdit
@@ -979,7 +996,7 @@ function bookDialog(book) {
     actions: [{ label: t('app.cancel'), run: () => closeModal() },
               { label: t('app.save'), kind: 'primary', run: save }],
     onClose: () => {
-      if (location.hash === '#/new') history.back();
+      if (location.hash === '#/new') leaveRoute('#/search');
       // Cancelling an edit returns to the book it was opened from.
       else if (location.hash.startsWith('#/book/')) render();
     }
@@ -999,6 +1016,7 @@ async function bookDetail(book) {
     book.deleted ? el('p', {}, el('span', { class: 'badge danger', text: t('book.deleted_note') })) : null,
     line(t('book.authors'), book._authors),
     line(t('book.publisher'), book.publisher),
+    line(t('book.volumes'), book.volumes == null ? '—' : String(book.volumes)),
     line(t('book.box'), box ? box.name + ' · ' + box.column + box.line : '—'),
     line(t('search.library'), lib ? lib.name + (lib.place ? ' — ' + lib.place : '') : '—'),
     book.more ? line(t('book.details'), book.more) : null,
@@ -1027,7 +1045,7 @@ async function bookDetail(book) {
 
   openModal({
     title: book.title, body: body, actions: actions,
-    onClose: () => { if (location.hash.startsWith('#/book/')) history.back(); }
+    onClose: () => { if (location.hash.startsWith('#/book/')) leaveRoute('#/search'); }
   });
 
   // The history is a second request; the dialog should not wait on it.
@@ -1099,6 +1117,14 @@ function render() {
 }
 
 function go(hash) { location.hash = hash; }
+
+/* Leaving a route-backed dialog.  The manifest offers a "Nouveau livre"
+ * shortcut, so the application can start on #/new with nothing behind it; there
+ * history.back() does nothing and the form would reopen itself immediately. */
+function leaveRoute(fallback) {
+  if (history.length > 1) history.back();
+  else location.hash = fallback || '#/search';
+}
 
 /* ------------------------------------------------------------ search view */
 
@@ -1231,7 +1257,7 @@ function sortHeader(key, label) {
   }, label + ' ', el('span', { class: 'arrow', text: active ? (S.sort.dir > 0 ? '▲' : '▼') : '' }));
 }
 
-function resultsTable(books) {
+function resultsTable(books, options) {
   const body = el('tbody');
   books.forEach(b => {
     const row = el('tr', { class: b.deleted ? 'deleted' : '', onclick: () => go('#/book/' + b.id) },
@@ -1243,7 +1269,7 @@ function resultsTable(books) {
       el('td', { class: 'more', text: b.more }));
     body.appendChild(row);
   });
-  return el('table', { class: 'results' },
+  const table = el('table', { class: 'results' },
     el('thead', {}, el('tr', {},
       sortHeader('title', t('search.title')),
       sortHeader('authors', t('search.authors')),
@@ -1252,6 +1278,10 @@ function resultsTable(books) {
       sortHeader('library', t('search.library')),
       sortHeader('more', t('search.more')))),
     body);
+  // Only where the table shares its width with something else; wrapping it on
+  // the search page would turn the sticky header into a nested scroll area.
+  return (options && options.scroll)
+    ? el('div', { class: 'table-scroll' }, table) : table;
 }
 
 function resultsCards(books) {
@@ -1326,11 +1356,14 @@ function viewBox(id) {
   view.appendChild(el('p', { class: 'hint',
     text: (lib ? lib.name + ' — ' : '') + box.column + box.line + (lib && lib.place ? ' · ' + lib.place : '') }));
 
-  view.appendChild(el('div', { class: 'cols-2', style: 'margin-top:12px' },
-    el('div', {}, books.length
-      ? el('div', {}, resultsTable(books), resultsCards(books))
+  // A flex row rather than the shared two-column grid: the grid's 1fr tracks
+  // are min-width:auto, so the table refused to shrink and slid underneath the
+  // shelf drawing, hiding the Détails column.
+  view.appendChild(el('div', { class: 'box-layout' },
+    el('div', { class: 'box-books' }, books.length
+      ? el('div', {}, resultsTable(books, { scroll: true }), resultsCards(books))
       : el('div', { class: 'empty', text: t('box.empty') })),
-    lib ? el('div', { class: 'card panel' }, shelfSvg(lib, {
+    lib ? el('div', { class: 'card panel box-plan' }, shelfSvg(lib, {
       selectedBox: box, caption: true, onPick: b => go('#/box/' + b.id) })) : null));
 }
 
@@ -1380,7 +1413,7 @@ function viewPeople(kind) {
         el('div', { class: 'grow' },
           el('div', { class: 'name', text: labelOf(item) }),
           el('div', { class: 'sub', text: used ? used + ' ' + t('app.books') : t('author.orphan') })),
-        used ? el('button', { class: 'btn small ghost', text: '⌕', title: t('app.search'),
+        used ? el('button', { class: 'btn small', text: t('app.view_books'),
           onclick: () => {
             S.filters = { all: '', title: '', authors: '', publisher: '', box: '', library: '' };
             S.filters[isAuthors ? 'authors' : 'publisher'] = labelOf(item);
@@ -1450,8 +1483,10 @@ function viewBoxes() {
             el('div', { class: 'name', text: box.name }),
             el('div', { class: 'sub', text: box.library_name + ' · ' + box.column + box.line
                           + ' · ' + plural(count, 'app.book', 'app.books') })),
-          el('button', { class: 'btn small ghost', text: '⌕', onclick: () => go('#/box/' + box.id) }),
-          el('button', { class: 'btn small', text: t('app.edit'), onclick: () => boxDialog(box) })));
+          el('button', { class: 'btn small', text: t('app.view'),
+                         onclick: () => go('#/box/' + box.id) }),
+          el('button', { class: 'btn small ghost', text: t('app.edit'),
+                         onclick: () => boxDialog(box) })));
       });
   }
   search.addEventListener('input', debounce(draw, 120));
@@ -1475,8 +1510,10 @@ function viewLibraries() {
         el('div', { class: 'sub', text: (lib.place || '').replace(/\n/g, ' · ')
           + ' · ' + lib.lines + '×' + lib.columns + ' · '
           + plural(boxes, 'lib.box', 'lib.boxes') })),
-      el('button', { class: 'btn small ghost', text: '⌕', onclick: () => go('#/library/' + lib.id) }),
-      el('button', { class: 'btn small', text: t('app.edit'), onclick: () => libraryDialog(lib) })));
+      el('button', { class: 'btn small', text: t('app.view'),
+                     onclick: () => go('#/library/' + lib.id) }),
+      el('button', { class: 'btn small ghost', text: t('app.edit'),
+                     onclick: () => libraryDialog(lib) })));
   });
 }
 
@@ -1599,15 +1636,19 @@ function toolVolumes() {
                                   style: 'width:80px' });
       rows.appendChild(el('div', { class: 'row' },
         el('div', { class: 'grow' },
-          el('div', { class: 'name', text: entry.text || '—' }),
-          el('div', { class: 'sub', text: entry.books.map(b => b.title).join(' · ') })),
+          el('div', { class: 'name', text: entry.title }),
+          el('div', { class: 'sub', text: entry.text || '—' })),
         input,
         el('button', { class: 'btn small primary', text: t('tools.volumes_save'),
           onclick: async ev => {
+            const row = ev.target.closest('.row');
             try {
               await api('/api/volumes/resolve', { method: 'POST',
-                body: { hash: entry.hash, count: +input.value } });
-              ev.target.closest('.row').remove();
+                body: { book_ids: [entry.id], count: +input.value,
+                        text: entry.text } });
+              row.remove();
+              await loadCatalog();
+              refreshSync();
               toast(t('app.saved'));
             } catch (err) { toast(err.message, 'error'); }
           } })));
@@ -1714,7 +1755,7 @@ function viewHistory() {
           el('div', { class: 'name', text: label }),
           el('div', { class: 'sub', text: sub.filter(Boolean).join(' · ') })),
         entry.table === 'books' && S.byId[entry.id]
-          ? el('button', { class: 'btn small ghost', text: '⌕',
+          ? el('button', { class: 'btn small ghost', text: t('app.view'),
               onclick: () => go('#/book/' + entry.id) }) : null));
     });
     slot.appendChild(rows);

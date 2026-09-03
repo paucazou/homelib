@@ -26,7 +26,7 @@ L'application répond alors sur **http://palantir:8888/**.
 | `Boxes: mass` déplacer des livres        | onglet Outils |
 | `Switch boxes` vider une étagère         | onglet Outils |
 | `export.py` liste « auteur :: titre »    | onglet Export, plus CSV et JSON |
-| `volumes.py` compte des tomes            | onglet Statistiques, les cas douteux se règlent dans Outils |
+| `volumes.py` compte des tomes            | colonne `volumes` en base, les cas douteux se règlent dans Outils |
 | Traduction FR/EN (`gui/i18n`)            | idem, bouton dans la barre du haut |
 
 ## Ce qui est nouveau
@@ -40,6 +40,20 @@ L'application répond alors sur **http://palantir:8888/**.
 - **ISBN** : saisir un ISBN pré-remplit titre, auteurs et éditeur.
 - **Hors ligne** : le catalogue reste consultable sans réseau.
 - **Git** : chaque ajout ou suppression devient un commit, poussé chaque nuit.
+
+## La colonne `volumes`
+
+La table `books` a gagné une colonne `volumes` : le nombre de tomes physiques,
+lu une fois pour toutes depuis les détails plutôt que recalculé à chaque
+affichage. Elle vaut `NULL` tant que personne n'a tranché ; l'onglet Outils
+liste ces cas. Le formulaire laisse la saisir à la main, et un champ vide veut
+dire « déduis-le de la description ».
+
+`books_backup` a reçu la même colonne, sans quoi `mainclass.backup()`, qui
+recopie une ligne entière avec des marqueurs positionnels, aurait cessé de
+fonctionner. Pour la même raison `addBook` nomme désormais ses colonnes, et les
+trois `book[-1]` de `gui/mainwindow.py` — qui désignaient l'étagère — sont
+devenus `book[5]`.
 
 ## Deux points à savoir
 

@@ -119,7 +119,7 @@ class Main(QMainWindow,SuperTranslator):
     def libInfo(self,*args):
         book = self.W.results.item(args[0],0).info
         
-        box = self.results['boxes'][book[-1]-1]
+        box = self.results['boxes'][book[5]-1]   # [5] = box; [-1] is now 'volumes'
         library = self.results['libraries'][box[2]-1]
         boxnames = []
         for line in range(library[3]+1):
@@ -171,7 +171,7 @@ class Results(QTableWidget,SuperTranslator):
                 title = item.info[1],
                 authors = item.info[2],
                 publisher = item.info[3],
-                box = item.info[-1],
+                box = item.info[5],   # [5] = box; [-1] is now 'volumes'
                 details = item.info[4],
                 id = item.info[0])
 
@@ -206,7 +206,7 @@ class Results(QTableWidget,SuperTranslator):
                     j = int(j) - 1
                     book_authors += """{} {}\n""".format(self.results['authors'][j][1],self.results['authors'][j][2])
                 book_authors = book_authors[:-1]
-            box = self.results['boxes'][book[-1]-1]
+            box = self.results['boxes'][book[5]-1]   # [5] = box; [-1] is now 'volumes'
             book_box_name = "{} - {}{}".format(box[1],box[4],box[3])
             book_publisher = self.results['publishers'][book[3]-1][1]
             book_library = self.results['libraries'][box[2]-1][1]

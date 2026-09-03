@@ -35,6 +35,40 @@ _lock = threading.Lock()
 MAX_NUMBER_WORDS = 6
 
 
+def _is_number_word(word):
+    """True for 'douze', 'quatre-vingt-dix', 'et' -- not for '1907'."""
+    if word == "et":
+        return True
+    parts = [p for p in word.split("-") if p]
+    return bool(parts) and all(p in FRENCH_NUMBERS for p in parts)
+
+
+def number_before(words, i):
+    """Read the count written just before words[i].  Raises ValueError if none.
+
+    Two rules, and the first one is the important one.  A number in digits is
+    taken alone and never extended leftwards: the descriptions are full of dates,
+    and "1834\n14 volumes" must be fourteen volumes, not 1848.  Only French
+    number *words* are gathered into a phrase, which is what lets "vingt et un
+    tomes" read as 21 while "1907 douze volumes" still stops at "douze".
+    """
+    if i == 0:
+        raise ValueError("nothing precedes {!r}".format(words[i]))
+    previous = words[i - 1]
+    if previous.isdigit():
+        return int(previous)
+
+    start = i
+    while start > 0 and i - start < MAX_NUMBER_WORDS and _is_number_word(words[start - 1]):
+        start -= 1
+    # A phrase cannot be just the joining "et".
+    while start < i and words[start] == "et":
+        start += 1
+    if start == i:
+        raise ValueError("no number before {!r}".format(words[i]))
+    return to_int(" ".join(words[start:i]))
+
+
 def to_int(number):
     """Parse an int, an Arabic numeral, or a French number phrase.
 
@@ -122,25 +156,37 @@ def count(text, sums=None):
     all is one volume, and that counts as resolved: there is nothing to ask.
     """
     raw = text or ""
-    normalised = re.sub(r"[\n]", " ", re.sub(r"[.]", "", raw.lower()))
-    if "volume" not in normalised and "tome" not in normalised:
+    # Drop the full stops, turn the rest of the punctuation into spaces: the
+    # count is often written "1907, douze volumes" or "(douze volumes)".
+    normalised = re.sub(r"[,;:()\[\]/]", " ",
+                        re.sub(r"[\n]", " ", re.sub(r"[.]", "", raw.lower())))
+    words = normalised.split()
+
+    # Only the plural is a claim about a count.  "Tome 1 seulement" and "En un
+    # seul volume" describe one physical book, and asking the user about them --
+    # which testing the singular did -- gives them 111 questions with no
+    # meaningful answer.
+    if not any(w in ("volumes", "tomes") for w in words):
         return 1, True
 
     total = 0
-    words = normalised.split()
     for i, word in enumerate(words):
-        if word not in ("volumes", "tomes") or i == 0:
+        if word not in ("volumes", "tomes"):
             continue
-        # A French number can run to several words ("vingt et un tomes"), so
-        # try the longest phrase ending just before the keyword and fall back
-        # to shorter ones.  Reading only the previous word, as volumes.py does,
-        # turns "vingt et un tomes" into one volume.
-        for length in range(min(MAX_NUMBER_WORDS, i), 0, -1):
-            try:
-                total += to_int(" ".join(words[i - length:i]))
-            except ValueError:
-                continue
-            break
+        try:
+            total += number_before(words, i)
+            continue
+        except ValueError:
+            pass
+        # "Volumes 1 à 17" -- the count follows the keyword as a range.  Both
+        # ends must be plain numbers, so "Tomes 25-26-29 à 32" (a list, not a
+        # range) and "24 premiers tomes" are left for a human rather than
+        # guessed at.
+        if (i + 3 < len(words) and words[i + 1].isdigit()
+                and words[i + 2] in ("à", "a") and words[i + 3].isdigit()):
+            first, last = int(words[i + 1]), int(words[i + 3])
+            if 0 < first <= last:
+                total += last - first + 1
 
     if total:
         return total, True

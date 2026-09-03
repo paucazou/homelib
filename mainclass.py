@@ -27,10 +27,15 @@ class Library():
                 (self._newID('authors'),christian_name,last_name))
         self._db.commit()
 
-    def addBook(self,name,author,publisher,more,box):
-        """publisher and box are integers"""
-        self._cursor.execute("""INSERT INTO books VALUES (?,?,?,?,?,?);""",
-                (self._newID('books'),name,author,publisher,more,box))
+    def addBook(self,name,author,publisher,more,box,volumes=None):
+        """publisher, box and volumes are integers.
+
+        The columns are named rather than positional: the books table gained a
+        'volumes' column for the web application, and "VALUES (?,?,?,?,?,?)"
+        would now be one value short.
+        """
+        self._cursor.execute("""INSERT INTO books (id,name,author,publisher,more,box,volumes) VALUES (?,?,?,?,?,?,?);""",
+                (self._newID('books'),name,author,publisher,more,box,volumes))
         self._db.commit()
 
     def deleteBook(self,book:int):

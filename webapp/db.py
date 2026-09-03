@@ -18,10 +18,12 @@ The same constraint is why merging two authors here leaves the losing row in
 place, merely orphaned: deleting it would punch the hole that breaks the GUI.
 """
 
-import csv
+import logging
 import os
 import sqlite3
 import threading
+
+log = logging.getLogger("homelib.db")
 
 # Author encodings stored in books.author, kept identical to mainclass.Library.
 COLLECTIVE = "collective"
@@ -31,8 +33,15 @@ ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 def column_index(letter):
-    """'A' -> 0.  Boxes store their column as a letter, libraries as a count."""
-    return ALPHABET.index(letter.upper())
+    """'A' -> 0.  Boxes store their column as a letter, libraries as a count.
+
+    Rejects anything that is not a single letter.  ALPHABET.index() is a
+    substring search, so it happily returned 0 for "" and for "AB".
+    """
+    letter = (letter or "").upper()
+    if len(letter) != 1 or letter not in ALPHABET:
+        raise ValueError("{!r} is not a column letter".format(letter))
+    return ALPHABET.index(letter)
 
 
 def column_letter(index):
@@ -64,6 +73,31 @@ def encode_authors(kind, ids):
     if not ids:
         raise ValueError("a named book needs at least one author")
     return "{}|{}".format(len(ids), "|".join(str(i) for i in ids))
+
+
+def ensure_schema(path):
+    """Add the columns this application needs, if they are not there yet.
+
+    Only ever adds; the desktop programs read the same file and must keep
+    working.  books_backup gets the column too, because mainclass.backup()
+    copies a whole row across with positional placeholders and would break the
+    moment the two tables stopped matching.
+    """
+    conn = sqlite3.connect(path, timeout=15)
+    try:
+        added = []
+        for table in ("books", "books_backup"):
+            columns = {row[1] for row in conn.execute(
+                "PRAGMA table_info({})".format(table))}
+            if "volumes" not in columns:
+                conn.execute("ALTER TABLE {} ADD COLUMN volumes INTEGER".format(table))
+                added.append(table)
+        if added:
+            conn.commit()
+            log.info("added the volumes column to %s", ", ".join(added))
+        return added
+    finally:
+        conn.close()
 
 
 class Library:
@@ -186,16 +220,21 @@ class Library:
             box = boxes.get(b["box"])
             library = libraries.get(box["library"]) if box else None
 
-            for i in ids:
-                author_use[i] = author_use.get(i, 0) + 1
-            publisher_use[b["publisher"]] = publisher_use.get(b["publisher"], 0) + 1
-            box_use[b["box"]] = box_use.get(b["box"], 0) + 1
-            if library is not None:
-                library_use[library["id"]] = library_use.get(library["id"], 0) + 1
+            # Deleted books are left out of the counts: the shelf plan saying
+            # "30 livres" while opening that shelf lists 9 is worse than no
+            # number at all, and the statistics page counts active books too.
+            if b["id"] not in deleted:
+                for i in ids:
+                    author_use[i] = author_use.get(i, 0) + 1
+                publisher_use[b["publisher"]] = publisher_use.get(b["publisher"], 0) + 1
+                box_use[b["box"]] = box_use.get(b["box"], 0) + 1
+                if library is not None:
+                    library_use[library["id"]] = library_use.get(library["id"], 0) + 1
 
             books.append({
                 "id": b["id"],
                 "title": b["name"] or "",
+                "volumes": b["volumes"],       # None means "not established"
                 "author_kind": kind,
                 "author_ids": ids,
                 # Pre-rendered names so the client never has to join; it only
@@ -267,19 +306,33 @@ class Library:
                 backup_table), (item_id,))
 
     def recent_history(self, limit=200):
-        """A rough global edit log, newest first.
+        """The most recent edits of each kind, interleaved.
 
-        Rough because the backup tables record no time: rowid is a proxy for
-        'when', reliable in order but not in date.
+        The backup tables carry no timestamp, and each has its own rowid
+        counter, so there is no global chronology to recover.  Sorting the
+        merged rows by rowid -- which is what this did -- simply ranks by
+        whichever table has counted highest: books_backup is at 721 while
+        authors_backup is at 1, so book revisions filled the page and an edit to
+        an author or a shelf could never appear at all.
+
+        Instead take the newest from each table in turn.  Order within a kind is
+        exact; between kinds it means nothing, and the page says so.
         """
-        entries = []
+        per_table = []
         for table, backup_table in self.BACKUP_TABLES.items():
-            for row in self._query(
-                    "SELECT rowid AS revision, * FROM {} ORDER BY rowid DESC "
-                    "LIMIT ?".format(backup_table), (limit,)):
-                entries.append({"table": table, **row})
-        entries.sort(key=lambda e: e["revision"], reverse=True)
-        return entries[:limit]
+            rows = self._query(
+                "SELECT rowid AS revision, * FROM {} ORDER BY rowid DESC "
+                "LIMIT ?".format(backup_table), (limit,))
+            per_table.append([{"table": table, **row} for row in rows])
+
+        entries = []
+        for position in range(max((len(rows) for rows in per_table), default=0)):
+            for rows in per_table:
+                if position < len(rows):
+                    entries.append(rows[position])
+                    if len(entries) >= limit:
+                        return entries
+        return entries
 
     # --------------------------------------------------------------- writing
 
@@ -354,28 +407,67 @@ class Library:
             self.conn.commit()
         self._touch("étagère modifiée : {}".format(name))
 
-    def add_book(self, title, author_kind, author_ids, publisher_id, more, box_id):
+    def add_book(self, title, author_kind, author_ids, publisher_id, more, box_id,
+                 volumes=None):
         author = encode_authors(author_kind, author_ids)
         with self._write_lock:
             new_id = self._next_id("books")
+            # Named columns, not positional: the row is wider than it was.
             self.conn.execute(
-                "INSERT INTO books VALUES (?,?,?,?,?,?)",
-                (new_id, title, author, int(publisher_id), more, int(box_id)))
+                "INSERT INTO books (id, name, author, publisher, more, box, volumes)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (new_id, title, author, int(publisher_id), more, int(box_id),
+                 volumes))
             self.conn.commit()
         self._touch("livre ajouté : {}".format(title))
         return new_id
 
     def update_book(self, book_id, title, author_kind, author_ids, publisher_id,
-                    more, box_id):
+                    more, box_id, volumes=None):
         author = encode_authors(author_kind, author_ids)
         with self._write_lock:
             self._backup("books", book_id)
             self.conn.execute(
                 "UPDATE books SET name = ?, author = ?, publisher = ?, more = ?, "
-                "box = ? WHERE id = ?",
-                (title, author, int(publisher_id), more, int(box_id), book_id))
+                "box = ?, volumes = ? WHERE id = ?",
+                (title, author, int(publisher_id), more, int(box_id), volumes,
+                 book_id))
             self.conn.commit()
         self._touch("livre modifié : {}".format(title))
+
+    def set_volumes(self, book_ids, count):
+        """Record how many physical volumes these books amount to."""
+        count = int(count) if count is not None else None
+        with self._write_lock:
+            for book_id in book_ids:
+                self._backup("books", int(book_id))
+                self.conn.execute("UPDATE books SET volumes = ? WHERE id = ?",
+                                  (count, int(book_id)))
+            self.conn.commit()
+        self._touch("nombre de volumes précisé pour {} livre(s)".format(len(book_ids)))
+        return len(book_ids)
+
+    def backfill_volumes(self, counter):
+        """Fill in the volume counts that are still unknown.
+
+        `counter` takes the free-text 'more' field and returns (count, sure).
+        Only rows where the column is NULL are touched, so a number entered by
+        hand is never overwritten and re-running this costs nothing.
+        """
+        with self._write_lock:
+            rows = self.conn.execute(
+                "SELECT id, more FROM books WHERE volumes IS NULL").fetchall()
+            filled = 0
+            for row in rows:
+                count, sure = counter(row["more"] or "")
+                if not sure:
+                    continue          # leave it for a human to answer
+                self.conn.execute("UPDATE books SET volumes = ? WHERE id = ?",
+                                  (count, row["id"]))
+                filled += 1
+            if filled:
+                self.conn.commit()
+        return filled, len(rows) - filled
 
     def delete_book(self, book_id):
         """Tag a book deleted.  Rows are never removed, only marked.
