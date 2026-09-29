@@ -110,9 +110,10 @@ def to_int(number):
             current = 0
         elif value == 100:
             current = (current or 1) * 100
-        elif value == 20 and current == 4:
-            # "quatre-vingt(s)" is the one place French multiplies by twenty.
-            current = 80
+        elif value == 20 and current % 100 == 4:
+            # "quatre-vingt(s)" is the one place French multiplies by twenty --
+            # after hundreds too: "trois cent quatre-vingts" is 380, not 324.
+            current += 76
         else:
             current += value
 

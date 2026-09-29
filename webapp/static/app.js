@@ -815,10 +815,13 @@ function bookDialog(book) {
         setAuthorsFromNames(found.authors);
       }
       if (found.publishers.length) {
-        publisherCombo.input.value = found.publishers[0];
         const match = S.data.publishers.find(
           p => norm(p.name) === norm(found.publishers[0]));
+        // Setting the value rewrites the text -- to '' when there is no match --
+        // so the name has to go in afterwards, or it is lost before the
+        // "create" line can offer it.
         publisherCombo.value = match ? match.id : null;
+        if (!match) publisherCombo.input.value = found.publishers[0];
       }
       if (found.date && !details.value.trim()) details.value = found.date;
       isbnNote.textContent = t('book.isbn_found', found.title);
@@ -1539,9 +1542,12 @@ function toolMove() {
   const panel = el('div', { class: 'card panel' });
   const search = el('input', { type: 'search', placeholder: t('search.placeholder'), autocomplete: 'off' });
   const rows = el('div', { class: 'rows', style: 'max-height:320px;overflow-y:auto' });
+  // onChange rather than listening for input and clicks on the widget: picking
+  // a shelf with the keyboard fires neither, and left the button disabled.
   const target = combo({
     items: S.data.boxes.map(b => ({ id: b.id, label: boxLabel(b) })),
-    placeholder: t('tools.move_target')
+    placeholder: t('tools.move_target'),
+    onChange: () => refreshAction()
   });
   const action = el('button', { class: 'btn primary', disabled: true, text: t('tools.move_do', 0) });
 
@@ -1549,8 +1555,6 @@ function toolMove() {
     action.disabled = S.selection.size === 0 || target.invalid;
     action.textContent = t('tools.move_do', S.selection.size);
   }
-  target.node.addEventListener('input', () => setTimeout(refreshAction, 0));
-  target.node.addEventListener('click', () => setTimeout(refreshAction, 150));
 
   function draw() {
     const needle = norm(search.value);

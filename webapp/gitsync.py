@@ -257,6 +257,11 @@ class GitSync:
                 return {"pushed": False, "ahead": ahead, "behind": behind,
                         "diverged": True}
 
+            if self.diverged:
+                # Resolved by hand since the last attempt.  Left in place, the
+                # old message kept the UI red and made the daily push exit 1
+                # on every run until a push happened to succeed.
+                self.last_error = None
             self.diverged = False
             if behind and not ahead:
                 # Someone committed from the desktop; take their work.
