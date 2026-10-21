@@ -6480,7 +6480,8 @@ INSERT INTO "books" VALUES(3517,'Mémoires de Jean Monnet','1|1697',18,'',143,1)
 INSERT INTO "books" VALUES(3518,'Mémoires de Guerre','1|1698',106,'',143,3);
 INSERT INTO "books" VALUES(3519,'Histoire de la littérature française','1|101',47,'Jusqu''à la Grande Guerre',143,2);
 INSERT INTO "books" VALUES(3520,'Une Histoire de la musique','1|1699',166,'Des origines à nos jours. Quatrième de couverture de Kléber Haedens',143,1);
-INSERT INTO "books" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays',143,6);
+INSERT INTO "books" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays
+Avec un index',143,7);
 INSERT INTO "books" VALUES(3522,'Le petit livre noir des collègues de bureau','1|1700',295,'',41,1);
 INSERT INTO "books" VALUES(3523,'Le Dieu du carnage','1|742',71,'',60,1);
 INSERT INTO "books" VALUES(3524,'Un philosophe face à la Révolution','1|1701',642,'La pensée politique de Louis de Bonald',67,1);
@@ -7596,6 +7597,7 @@ INSERT INTO "books_backup" VALUES(2047,'Le Livre de la Grâce spéciale','1|1088
 INSERT INTO "books_backup" VALUES(2048,'Œuvres','1|1089',492,'Avec une préface de Mgr Darbois',46,NULL);
 INSERT INTO "books_backup" VALUES(2186,'Martyrologe Romain','collective',188,'Par des moines de Farnborough et de Solesmes. Édition de 1948.',46,NULL);
 INSERT INTO "books_backup" VALUES(1286,'Missel quotidien et vespéral','2|760|22',331,'Traductions bibliques du chanoine Osty',47,NULL);
+INSERT INTO "books_backup" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays',143,6);
 CREATE TABLE boxes (
 id INTEGER PRIMARY KEY,
 name TEXT,
