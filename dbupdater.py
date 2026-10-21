@@ -54,6 +54,12 @@ def is_same_sum(server_sum, db):
 
 
 def download(server_sum):
+    """Fetch the database until it matches the server's checksum.
+
+    The web application writes to that file at any moment, so a save landing
+    between the checksum and the download changes the expected sum: ask for it
+    again each round, and give up after a few tries rather than loop forever.
+    """
     url = server + 'downloader.py'
     for attempt in range(1, MAX_RETRIES + 1):
         log.info('Downloading database (attempt %d/%d)…', attempt, MAX_RETRIES)
@@ -65,9 +71,14 @@ def download(server_sum):
         if is_same_sum(server_sum, temp_lib):
             os.replace(temp_lib, library)
             log.info('Database updated successfully.')
-            return
+            return True
         log.warning('Checksum mismatch after download, retrying…')
-    log.error('Failed to download a valid database after %d attempts.', MAX_RETRIES)
+        server_sum = checksum()
+        if not server_sum:
+            return False
+    log.error('Failed to download a valid database after %d attempts; '
+              'local copy left as it was.', MAX_RETRIES)
+    return False
 
 
 def updateDB():

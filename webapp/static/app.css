@@ -562,3 +562,114 @@ td.more { color: var(--ink-faint); font-size: .84rem; white-space: pre-wrap; }
   .cards { display: none !important; }
   body { background: #fff; color: #000; }
 }
+
+/* ------------------------------------------------------------ print cards
+ *
+ * Cards are paper, whatever the screen theme: the preview shows exactly what
+ * the printer will get, so they carry their own ink and never read the theme
+ * tokens.  Sizes are in millimetres for the same reason, and chosen to tile an
+ * A4 page inside 9 mm margins: 3 x 7 of the common 63.5 x 38.1 label sheets,
+ * 2 x 5 business cards, 2 x 4 large cards, 2 A6.  Cards sit edge to edge so
+ * that one cut separates two of them; the dashed border is the cutting line.
+ */
+
+.cards-controls { margin-bottom: 16px; }
+.cards-kinds { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.cards-kinds .btn.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.cards-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.cards-chips:empty { display: none; }
+.cards-summary { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.cards-summary .count { color: var(--ink-faint); font-size: .85rem; }
+.print-sheet-wrap { overflow-x: auto; padding: 12px; border-radius: var(--radius);
+                    background: color-mix(in srgb, var(--ink) 6%, var(--paper)); }
+
+.print-sheet { display: flex; flex-wrap: wrap; align-content: flex-start; width: max-content;
+               max-width: 192mm; }
+
+.pcard {
+  --pc-ink: #1f1b16;
+  --pc-soft: #5b5246;
+  --pc-faint: #8a7f70;
+  --pc-rule: #b9ae9c;
+  --pc-accent: #7a5c3e;
+  --pc-accent-ink: #fdfaf5;
+  width: 85mm; height: 55mm; font-size: 8.5pt;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: .35em;
+  padding: 3.2mm 3.8mm;
+  background: #fff; color: var(--pc-ink);
+  border: .2mm dashed var(--pc-rule);
+  margin: 0 -.2mm -.2mm 0;               /* neighbours share one cutting line */
+  font-family: var(--font); line-height: 1.22;
+  break-inside: avoid; page-break-inside: avoid;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.print-sheet.no-cut .pcard { border-color: transparent; }
+.pcard.size-s { width: 63.5mm; height: 38.1mm; font-size: 7pt; padding: 2.4mm 3mm; }
+.pcard.size-l { width: 95mm; height: 68mm; font-size: 10pt; padding: 4.5mm 5mm; }
+.pcard.size-xl { width: 148mm; height: 105mm; font-size: 11pt; padding: 6mm; }
+.pcard.wide { width: 190mm; height: auto; min-height: 55mm; break-inside: auto; page-break-inside: auto; }
+
+.pc-label { font-family: var(--font-ui); font-size: .72em; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--pc-faint); }
+.pc-title { font-family: var(--font); font-weight: 700; font-size: 1.32em; line-height: 1.12;
+            margin: 0; color: var(--pc-ink); text-wrap: balance;
+            display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.pc-authors { font-style: italic; color: var(--pc-ink);
+              display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.pc-meta { font-family: var(--font-ui); font-size: .82em; color: var(--pc-soft); }
+.pc-more { margin: 0; font-size: .86em; color: var(--pc-soft); white-space: pre-line;
+           display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.pc-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline;
+           gap: 8px; font-family: var(--font-ui); font-size: .72em; color: var(--pc-faint);
+           font-variant-numeric: tabular-nums; }
+.pc-foot .pc-id { font-weight: 600; }
+
+/* The shelf code is what a hand looks for first, so it is the one inverted
+ * block on the card. */
+.pc-ref { display: inline-flex; align-items: center; justify-content: center;
+          min-width: 2.2em; padding: .1em .4em; border-radius: .25em;
+          background: var(--pc-accent); color: var(--pc-accent-ink);
+          font-family: var(--font-ui); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Book card */
+.pc-loc { display: flex; align-items: center; gap: .5em; padding-bottom: .4em;
+          border-bottom: .2mm solid var(--pc-rule); font-family: var(--font-ui); font-size: .85em; }
+.pc-loc .pc-box { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-loc .pc-lib { margin-left: auto; color: var(--pc-soft); white-space: nowrap; }
+.pcard.deleted .pc-title { text-decoration: line-through; }
+.size-s .pc-more, .size-s .pc-meta { display: none; }
+.size-s .pc-title { -webkit-line-clamp: 2; }
+.size-l .pc-more { -webkit-line-clamp: 6; }
+.size-xl .pc-more { -webkit-line-clamp: 10; }
+
+/* Box card: a shelf label, read from a step away */
+.pc-boxhead { display: flex; align-items: center; gap: .7em; }
+.pc-boxhead .pc-ref { font-size: 2.3em; min-width: 1.9em; padding: .12em .3em; border-radius: .14em; }
+.pc-boxhead > div { min-width: 0; display: flex; flex-direction: column; gap: .2em; }
+.pc-place { font-size: .86em; color: var(--pc-soft); white-space: pre-line;
+            display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.pc-list { margin: .3em 0 0; padding: .45em 0 0; list-style: none; border-top: .2mm solid var(--pc-rule);
+           columns: 2; column-gap: 6mm; font-size: .86em; line-height: 1.3; }
+.pc-list li { break-inside: avoid; padding: .08em 0; }
+.pc-list .pc-who { color: var(--pc-soft); }
+
+/* Library card: name and counts beside the plan of its shelves */
+.pcard-lib { flex-direction: row; gap: 4mm; }
+.pc-libinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .4em; }
+.pc-libinfo .pc-title { font-size: 1.6em; }
+.pc-plan { flex: none; height: 100%; display: flex; align-items: center; justify-content: flex-end; max-width: 55%; }
+.pc-plan svg { width: auto; height: 100%; max-width: 100%; stroke: none; }
+.pc-plan .pl-cell { fill: #fff; stroke: var(--pc-rule); stroke-width: 1.4; }
+.pc-plan .pl-cell.used { fill: #f3ede4; }
+.pc-plan .pl-ref { fill: var(--pc-faint); font: 700 9px system-ui, sans-serif; }
+.pc-plan .pl-name { fill: var(--pc-ink); font: 600 10px system-ui, sans-serif; }
+.pc-plan .pl-axis { fill: var(--pc-soft); font: 700 11px system-ui, sans-serif; }
+.size-s .pc-plan { display: none; }
+
+@media print {
+  @page { size: A4; margin: 9mm; }
+  .no-print, body:has(.print-sheet) .offline-note { display: none !important; }
+  .print-sheet-wrap { padding: 0; background: none; overflow: visible; border-radius: 0; }
+  .print-sheet { max-width: none; width: auto; }
+}

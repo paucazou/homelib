@@ -134,7 +134,30 @@ window.I18N = {
     'export.format': 'Format', 'export.txt': 'Texte (auteur :: titre)',
     'export.csv': 'CSV (tableur)', 'export.json': 'JSON',
     'export.download': 'Télécharger', 'export.preview': 'Aperçu',
-    'export.deleted': 'Inclure les livres supprimés'
+    'export.deleted': 'Inclure les livres supprimés',
+
+    'nav.cards': 'Fiches',
+    'cards.title': 'Fiches à imprimer',
+    'cards.kind.books': 'Livres', 'cards.kind.boxes': 'Étagères',
+    'cards.kind.libraries': 'Bibliothèques',
+    'cards.size': 'Taille',
+    'cards.size.s': 'Étiquette 63,5 × 38,1 mm (21 par page)', 'cards.size.m': 'Carte 85 × 55 mm (10 par page)',
+    'cards.size.l': 'Grande 95 × 68 mm (8 par page)', 'cards.size.xl': 'A6 148 × 105 mm (2 par page)',
+    'cards.cut': 'Traits de coupe', 'cards.details': 'Détails du livre',
+    'cards.list': 'Liste des livres', 'cards.plan': 'Plan des étagères',
+    'cards.print': 'Imprimer', 'cards.card': 'fiche', 'cards.cards': 'fiches',
+    'cards.none': 'Aucune fiche ne correspond à ces critères.',
+    'cards.many': 'Beaucoup de fiches : l’aperçu et l’impression peuvent être lents.',
+    'cards.picked': 'Sélection : {0}',
+    'cards.narrow': 'Choisissez une bibliothèque, une étagère ou une recherche.',
+    'cards.show_all': 'Toutes les fiches ({0})',
+    'cards.card_one': 'Fiche', 'cards.of_books': 'Fiches des livres',
+    'cards.of_boxes': 'Fiches des étagères', 'cards.of_results': 'Fiches de ces résultats',
+    'cards.number': 'n° {0}', 'cards.library': 'Bibliothèque',
+    'cards.box_meta': 'Ligne {0} · colonne {1}',
+    'cards.volume': 'volume', 'cards.volumes': 'volumes',
+    'cards.line': 'ligne', 'cards.lines': 'lignes',
+    'cards.column': 'colonne', 'cards.columns': 'colonnes'
   },
 
   en: {
@@ -267,6 +290,29 @@ window.I18N = {
     'export.format': 'Format', 'export.txt': 'Text (author :: title)',
     'export.csv': 'CSV (spreadsheet)', 'export.json': 'JSON',
     'export.download': 'Download', 'export.preview': 'Preview',
-    'export.deleted': 'Include deleted books'
+    'export.deleted': 'Include deleted books',
+
+    'nav.cards': 'Cards',
+    'cards.title': 'Printable cards',
+    'cards.kind.books': 'Books', 'cards.kind.boxes': 'Boxes',
+    'cards.kind.libraries': 'Libraries',
+    'cards.size': 'Size',
+    'cards.size.s': 'Label 63.5 × 38.1 mm (21 per page)', 'cards.size.m': 'Card 85 × 55 mm (10 per page)',
+    'cards.size.l': 'Large 95 × 68 mm (8 per page)', 'cards.size.xl': 'A6 148 × 105 mm (2 per page)',
+    'cards.cut': 'Cutting lines', 'cards.details': 'Book details',
+    'cards.list': 'List of books', 'cards.plan': 'Shelf plan',
+    'cards.print': 'Print', 'cards.card': 'card', 'cards.cards': 'cards',
+    'cards.none': 'No card matches these criteria.',
+    'cards.many': 'Many cards: preview and printing may be slow.',
+    'cards.picked': 'Selection: {0}',
+    'cards.narrow': 'Pick a library, a box or a search.',
+    'cards.show_all': 'All the cards ({0})',
+    'cards.card_one': 'Card', 'cards.of_books': 'Cards of the books',
+    'cards.of_boxes': 'Cards of the boxes', 'cards.of_results': 'Cards of these results',
+    'cards.number': 'No. {0}', 'cards.library': 'Library',
+    'cards.box_meta': 'Line {0} · column {1}',
+    'cards.volume': 'volume', 'cards.volumes': 'volumes',
+    'cards.line': 'line', 'cards.lines': 'lines',
+    'cards.column': 'column', 'cards.columns': 'columns'
   }
 };

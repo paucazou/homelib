@@ -72,7 +72,7 @@ def delete_book():
     while True:
         alphaSort(books,"",answer,new_item=False)
         answer = input("Choose the book you want to delete: ")
-        if answer.isnumeric() and int(answer) <= len(books):
+        if answer.isnumeric() and int(answer) < len(books):
             check = input("Are you sure you want to delete: {}[y/NO]".format(books[int(answer)]))
             if check == "y":
                 library.deleteBook(int(answer)+1)

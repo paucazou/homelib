@@ -156,6 +156,20 @@ def create_app(config=None):
         except (TypeError, ValueError):
             raise ApiError("Le champ {} doit être un nombre".format(key))
 
+    def need_ids(data, key, message):
+        """A non-empty list of integer ids.
+
+        int() on each element used to happen unguarded, so a stray string in
+        the list turned a client mistake into a 500.
+        """
+        ids = data.get(key) or []
+        if not isinstance(ids, list) or not ids:
+            raise ApiError(message)
+        try:
+            return [int(i) for i in ids]
+        except (TypeError, ValueError):
+            raise ApiError("Identifiant invalide dans {}".format(key))
+
     def read_authors(data):
         """Validate the three ways a book can be attributed.
 
@@ -348,11 +362,9 @@ def create_app(config=None):
     def api_move_books():
         """The command line's 'Boxes: mass' -- move chosen books to one box."""
         data = payload()
-        ids = data.get("book_ids") or []
-        if not isinstance(ids, list) or not ids:
-            raise ApiError("Sélectionnez au moins un livre")
+        ids = need_ids(data, "book_ids", "Sélectionnez au moins un livre")
         known = {b["id"] for b in library.books()}
-        unknown = [i for i in ids if int(i) not in known]
+        unknown = [i for i in ids if i not in known]
         if unknown:
             raise ApiError("Livre inconnu : {}".format(unknown[0]))
         box_id = check_exists("boxes", need_int(data, "box_id"), "Étagère")
@@ -460,10 +472,8 @@ def create_app(config=None):
     def api_merge_authors():
         data = payload()
         target = check_exists("authors", need_int(data, "target_id"), "Auteur")
-        sources = [check_exists("authors", int(i), "Auteur")
-                   for i in (data.get("source_ids") or [])]
-        if not sources:
-            raise ApiError("Sélectionnez les auteurs à fusionner")
+        sources = [check_exists("authors", i, "Auteur") for i in need_ids(
+            data, "source_ids", "Sélectionnez les auteurs à fusionner")]
         return jsonify({"updated": library.merge_authors(sources, target)})
 
     # ------------------------------------------------------------- publishers
@@ -482,10 +492,8 @@ def create_app(config=None):
     def api_merge_publishers():
         data = payload()
         target = check_exists("publisher", need_int(data, "target_id"), "Éditeur")
-        sources = [check_exists("publisher", int(i), "Éditeur")
-                   for i in (data.get("source_ids") or [])]
-        if not sources:
-            raise ApiError("Sélectionnez les éditeurs à fusionner")
+        sources = [check_exists("publisher", i, "Éditeur") for i in need_ids(
+            data, "source_ids", "Sélectionnez les éditeurs à fusionner")]
         return jsonify({"updated": library.merge_publishers(sources, target)})
 
     # ---------------------------------------------------------------- history
@@ -499,7 +507,12 @@ def create_app(config=None):
 
     @app.route("/api/history")
     def api_recent_history():
-        limit = min(int(request.args.get("limit", 100)), 500)
+        # At least one: SQLite reads LIMIT -1 as "no limit", and a negative
+        # limit also made recent_history stop after its first entry.
+        try:
+            limit = max(1, min(int(request.args.get("limit", 100)), 500))
+        except ValueError:
+            raise ApiError("Paramètre limit invalide")
         return jsonify({"entries": library.recent_history(limit)})
 
     # ------------------------------------------------------------------ stats
@@ -554,9 +567,9 @@ def create_app(config=None):
         the desktop volumes.py uses, so it is only ever asked once.
         """
         data = payload()
-        ids = data.get("book_ids") or ([data["book_id"]] if data.get("book_id") else [])
-        if not ids:
-            raise ApiError("Aucun livre indiqué")
+        if data.get("book_ids") is None and data.get("book_id") is not None:
+            data["book_ids"] = [data["book_id"]]
+        ids = need_ids(data, "book_ids", "Aucun livre indiqué")
         try:
             n = int(need(data, "count"))
         except (TypeError, ValueError):
@@ -565,7 +578,7 @@ def create_app(config=None):
             raise ApiError("Un livre compte au moins un volume")
 
         known = {b["id"] for b in library.books()}
-        unknown = [i for i in ids if int(i) not in known]
+        unknown = [i for i in ids if i not in known]
         if unknown:
             raise ApiError("Livre inconnu : {}".format(unknown[0]))
 

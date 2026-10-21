@@ -40,6 +40,13 @@ L'application répond alors sur **http://palantir:8888/**.
 - **ISBN** : saisir un ISBN pré-remplit titre, auteurs et éditeur.
 - **Hors ligne** : le catalogue reste consultable sans réseau.
 - **Git** : chaque ajout ou suppression devient un commit, poussé chaque nuit.
+- **Fiches à imprimer** : une fiche par livre (à glisser dedans), par étagère
+  (à coller sur le rayon, avec au besoin la liste de ses livres) ou par
+  bibliothèque (avec le plan de ses étagères).  Chaque livre, étagère et
+  bibliothèque a son bouton « Fiche » ; la page Fiches imprime en masse, filtrée
+  par bibliothèque, étagère ou recherche, en quatre formats qui pavent une page
+  A4 (dont les planches de 21 étiquettes 63,5 × 38,1 mm).  Tout se fait dans le
+  navigateur, avec sa boîte d'impression.
 
 ## La colonne `volumes`
 
