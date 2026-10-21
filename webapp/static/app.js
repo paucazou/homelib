@@ -321,18 +321,7 @@ function shelfSvg(lib, options) {
       }
       if (!box) continue;
 
-      // Wrap the shelf name by hand: SVG has no text flow.
-      const words = String(box.name).split(/\s+/);
-      const rows = [];
-      let current = '';
-      words.forEach(w => {
-        if ((current + ' ' + w).trim().length > 14 && current) {
-          rows.push(current); current = w;
-        } else current = (current + ' ' + w).trim();
-      });
-      if (current) rows.push(current);
-      const shown = rows.slice(0, 5);
-      if (rows.length > 5) shown[4] = shown[4].slice(0, 11) + '…';
+      const shown = wrapWords(box.name, 14, 5);
 
       const startY = y + cell / 2 - (shown.length - 1) * 5 - 3;
       shown.forEach((row, i) => {
@@ -1046,6 +1035,8 @@ async function bookDetail(book) {
               t('book.deleted'),
               { undo: { path: '/api/books/' + book.id + '/restore' } }));
         } },
+    { label: t('cards.card_one'),
+      run: () => { closeModalSilently(); go(cardsHash('books', new URLSearchParams({ id: book.id }))); } },
     { label: t('app.edit'), kind: 'primary',
       run: () => { closeModalSilently(); bookDialog(book); } }
   ];
@@ -1099,7 +1090,9 @@ const ROUTES = [
   [/^#\/trash$/, () => viewTrash()],
   [/^#\/history$/, () => viewHistory()],
   [/^#\/stats$/, () => viewStats()],
-  [/^#\/export$/, () => viewExport()]
+  [/^#\/export$/, () => viewExport()],
+  [/^#\/cards(?:\/(books|boxes|libraries))?(?:\?(.*))?$/,
+   m => viewCards(m[1] || 'books', m[2] || '')]
 ];
 
 function render() {
@@ -1135,21 +1128,25 @@ function leaveRoute(fallback) {
 
 /* ------------------------------------------------------------ search view */
 
-function filteredBooks() {
-  const f = S.filters;
+/* The search page's filters, shared with the print cards so that "print these
+ * results" prints exactly the books the search showed. */
+function matchBooks(f, showDeleted) {
   const n = {
     all: norm(f.all), title: norm(f.title), authors: norm(f.authors),
     publisher: norm(f.publisher), box: norm(f.box), library: norm(f.library)
   };
-  let out = S.data.books.filter(b =>
-    (S.showDeleted || !b.deleted) &&
+  return S.data.books.filter(b =>
+    (showDeleted || !b.deleted) &&
     (!n.title || b._nt.includes(n.title)) &&
     (!n.authors || b._na.includes(n.authors)) &&
     (!n.publisher || b._np.includes(n.publisher)) &&
     (!n.box || b._nb.includes(n.box)) &&
     (!n.library || b._nl.includes(n.library)) &&
     (!n.all || b._all.includes(n.all)));
+}
 
+function filteredBooks() {
+  const out = matchBooks(S.filters, S.showDeleted);
   const key = S.sort.key, dir = S.sort.dir;
   const value = b => key === 'title' ? b.title
                    : key === 'authors' ? b._authors
@@ -1210,8 +1207,18 @@ function viewSearch() {
   });
 
   const count = el('span', {});
+  const printCards = el('button', {
+    class: 'btn small ghost', text: '⎙ ' + t('cards.of_results'), onclick: () => {
+      const p = new URLSearchParams();
+      [['all', 'q'], ['title', 'title'], ['authors', 'authors'], ['publisher', 'publisher'],
+       ['box', 'shelf'], ['library', 'lib']]
+        .forEach(([from, to]) => { if (f[from]) p.set(to, f[from]); });
+      if (S.showDeleted) p.set('deleted', '1');
+      go(cardsHash('books', p));
+    }
+  });
   const tools = el('div', { class: 'result-tools' }, toggleFilters, deletedToggle,
-                   reset, el('span', { style: 'flex:1' }), count);
+                   reset, printCards, el('span', { style: 'flex:1' }), count);
   const results = el('div', {});
 
   view.appendChild(el('div', { class: 'page-head' },
@@ -1310,6 +1317,13 @@ function resultsCards(books) {
 
 /* ------------------------------------------------------------ shelves view */
 
+/* A row of links to the print cards of what the page shows. */
+function cardLinks(links) {
+  return el('div', { class: 'btn-row', style: 'margin:4px 0 14px' }, links.map(
+    ([label, kind, params]) => el('a', { class: 'btn small', text: '⎙ ' + t(label),
+      href: cardsHash(kind, new URLSearchParams(params)) })));
+}
+
 function viewShelves() {
   const view = $('#view');
   view.appendChild(el('div', { class: 'page-head' },
@@ -1342,6 +1356,10 @@ function viewLibrary(id) {
     el('a', { class: 'btn small ghost', href: '#/shelves', text: '← ' + t('shelves.title') }),
     el('h1', { text: lib.name })));
   view.appendChild(el('p', { class: 'hint', text: lib.place || '' }));
+  view.appendChild(cardLinks([
+    ['cards.card_one', 'libraries', { id: lib.id }],
+    ['cards.of_boxes', 'boxes', { library: lib.id }],
+    ['cards.of_books', 'books', { library: lib.id }]]));
   view.appendChild(el('div', { class: 'card panel' },
     shelfSvg(lib, { onPick: box => go('#/box/' + box.id) })));
 }
@@ -1362,6 +1380,11 @@ function viewBox(id) {
                    onclick: () => boxDialog(box) })));
   view.appendChild(el('p', { class: 'hint',
     text: (lib ? lib.name + ' — ' : '') + box.column + box.line + (lib && lib.place ? ' · ' + lib.place : '') }));
+  view.appendChild(cardLinks([
+    ['cards.card_one', 'boxes', { id: box.id }],
+    // The same books as the list below, deleted ones included when shown.
+    ['cards.of_books', 'books', Object.assign({ box: box.id },
+                                              S.showDeleted ? { deleted: 1 } : {})]]));
 
   // A flex row rather than the shared two-column grid: the grid's 1fr tracks
   // are min-width:auto, so the table refused to shrink and slid underneath the
@@ -1473,6 +1496,7 @@ function viewBoxes() {
   view.appendChild(el('div', { class: 'page-head' },
     el('h1', { text: t('nav.boxes') }),
     el('span', { class: 'count', text: S.data.boxes.length }),
+    el('a', { class: 'btn small', text: '⎙ ' + t('cards.title'), href: cardsHash('boxes') }),
     el('button', { class: 'btn small primary', text: '＋ ' + t('box.new'),
                    onclick: () => boxDialog(null) })));
   view.appendChild(el('div', { class: 'list-toolbar' }, search));
@@ -1506,6 +1530,7 @@ function viewLibraries() {
   view.appendChild(el('div', { class: 'page-head' },
     el('h1', { text: t('nav.libraries') }),
     el('span', { class: 'count', text: S.data.libraries.length }),
+    el('a', { class: 'btn small', text: '⎙ ' + t('cards.title'), href: cardsHash('libraries') }),
     el('button', { class: 'btn small primary', text: '＋ ' + t('lib.new'),
                    onclick: () => libraryDialog(null) })));
   view.appendChild(rows);
@@ -1858,6 +1883,359 @@ function viewExport() {
   libSelect.addEventListener('change', sync);
   formatSelect.addEventListener('change', sync);
   withDeleted.addEventListener('change', sync);
+}
+
+/* -------------------------------------------------------------- print cards */
+
+/* Cards to print and cut out: one per book (to slip inside it), per shelf (to
+ * stick on the shelf) or per library (its plan, for the door).  Everything is
+ * built from the catalogue already in memory and printed with the browser's
+ * own dialog -- the Pi has nothing to render, and the preview on screen is the
+ * page that will come out.
+ *
+ * The selection lives in the hash (#/cards/books?box=12&size=s) so that every
+ * page can link to its own cards, and a reload or the Back button lands on the
+ * same sheet. */
+
+const CARD_KINDS = ['books', 'boxes', 'libraries'];
+const CARD_SIZES = {
+  books: ['s', 'm', 'l'],
+  boxes: ['s', 'm', 'l'],
+  libraries: ['m', 'l', 'xl']
+};
+const CARD_DEFAULT_SIZE = { books: 'm', boxes: 'm', libraries: 'l' };
+
+function cardsHash(kind, params) {
+  const query = params ? params.toString() : '';
+  return '#/cards/' + kind + (query ? '?' + query : '');
+}
+
+/* Comma-separated ids from the hash; anything that is not a number is dropped
+ * rather than matched against nothing. */
+function idList(value) {
+  return (value || '').split(',').map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+}
+
+function compareBoxes(a, b) {
+  return collator.compare((S.libById[a.library] || {}).name || '',
+                          (S.libById[b.library] || {}).name || '')
+    || a.line - b.line
+    || collator.compare(a.column || '', b.column || '')
+    || collator.compare(a.name, b.name);
+}
+
+function cardItems(kind, p) {
+  const ids = idList(p.get('id'));
+  const library = p.get('library') ? +p.get('library') : null;
+  const q = norm(p.get('q'));
+
+  if (kind === 'libraries') {
+    return S.data.libraries
+      .filter(l => !ids.length || ids.includes(l.id))
+      .filter(l => !q || norm(l.name + ' ' + (l.place || '')).includes(q))
+      .sort((a, b) => collator.compare(a.name, b.name));
+  }
+  if (kind === 'boxes') {
+    return S.data.boxes
+      .filter(b => !ids.length || ids.includes(b.id))
+      .filter(b => library === null || b.library === library)
+      .filter(b => !q || norm(b.name + ' ' + b.library_name + ' ' + b.column + b.line).includes(q))
+      .sort(compareBoxes);
+  }
+  const box = p.get('box') ? +p.get('box') : null;
+  // Books picked by hand are printed whatever their state: the "Fiche" button
+  // of a book in the trash must not open an empty sheet.
+  return matchBooks({
+    all: p.get('q'), title: p.get('title'), authors: p.get('authors'),
+    publisher: p.get('publisher'), box: p.get('shelf'), library: p.get('lib')
+  }, p.get('deleted') === '1' || ids.length > 0)
+    .filter(b => !ids.length || ids.includes(b.id))
+    .filter(b => box === null || b.box_id === box)
+    .filter(b => library === null || b.library_id === library)
+    // In the order they stand on the shelves, so a printed stack can be
+    // handed out walking along them.
+    // Books whose shelf is unknown go last, so the comparison stays consistent.
+    .sort((a, b) => {
+      const ba = S.boxById[a.box_id], bb = S.boxById[b.box_id];
+      return (!ba - !bb) || (ba && bb ? compareBoxes(ba, bb) : 0)
+        || collator.compare(a.title, b.title);
+    });
+}
+
+function cardFoot(left, id) {
+  return el('footer', { class: 'pc-foot' },
+    el('span', { text: left }),
+    el('span', { class: 'pc-id', text: t('cards.number', id) }));
+}
+
+function bookCard(book, size, opts) {
+  const meta = [book.publisher,
+    book.volumes ? plural(book.volumes, 'cards.volume', 'cards.volumes') : null]
+    .filter(Boolean).join(' · ');
+  return el('article', { class: 'pcard pcard-book size-' + size + (book.deleted ? ' deleted' : '') },
+    el('header', { class: 'pc-loc' },
+      el('span', { class: 'pc-ref', text: book.box_ref || '—' }),
+      el('span', { class: 'pc-box', text: book.box }),
+      el('span', { class: 'pc-lib', text: book.library })),
+    el('h3', { class: 'pc-title', text: book.title }),
+    el('div', { class: 'pc-authors', text: book._authors }),
+    meta ? el('div', { class: 'pc-meta', text: meta }) : null,
+    opts.details && book.more ? el('p', { class: 'pc-more', text: book.more }) : null,
+    cardFoot('Homelib', book.id));
+}
+
+function boxCard(box, size, opts) {
+  const lib = S.libById[box.library];
+  const place = lib ? lib.name + (lib.place ? ' — ' + lib.place.split('\n')[0] : '') : '';
+  const books = opts.list
+    ? S.data.books.filter(b => b.box_id === box.id && !b.deleted)
+        .sort((a, b) => collator.compare(a.title, b.title))
+    : [];
+  // An empty shelf keeps an ordinary card rather than a full-width strip.
+  return el('article', { class: 'pcard pcard-box size-' + size + (books.length ? ' wide' : '') },
+    el('div', { class: 'pc-boxhead' },
+      el('span', { class: 'pc-ref', text: box.column + box.line }),
+      el('div', {},
+        el('h3', { class: 'pc-title', text: box.name }),
+        el('div', { class: 'pc-place', text: place }))),
+    el('div', { class: 'pc-meta', text: t('cards.box_meta', box.line, box.column) + ' · '
+      + plural(S.usage.boxes[box.id] || 0, 'app.book', 'app.books') }),
+    books.length ? el('ol', { class: 'pc-list' }, books.map(b =>
+      el('li', {}, b.title + ' ', el('span', { class: 'pc-who', text: '— ' + b._authors })))) : null,
+    cardFoot('Homelib · ' + t('lib.box'), box.id));
+}
+
+/* SVG has no text flow: break a name into at most maxRows lines of at most
+ * width characters, with an ellipsis wherever it did not fit. */
+function wrapWords(text, width, maxRows) {
+  const rows = [];
+  let current = '';
+  String(text).split(/\s+/).forEach(w => {
+    if (current && (current + ' ' + w).length > width) { rows.push(current); current = w; }
+    else current = (current + ' ' + w).trim();
+  });
+  if (current) rows.push(current);
+  if (rows.length > maxRows) {
+    rows.length = maxRows;
+    rows[maxRows - 1] = rows[maxRows - 1].slice(0, width - 1) + '…';
+  }
+  // A single word longer than the line would spill into the next cell.
+  return rows.map(row => row.length > width ? row.slice(0, width - 1) + '…' : row);
+}
+
+/* The library's grid for paper: the screen's shelfSvg draws in theme colours
+ * and reacts to clicks, neither of which survives a printer. */
+function planSvg(lib) {
+  const lines = Math.max(1, lib.lines || 1), columns = Math.max(1, lib.columns || 1);
+  const cell = 80, gap = 4, left = 16, top = 14;
+  const letter = c => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[c];
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + (left + columns * (cell + gap)) + ' '
+                   + (top + lines * (cell + gap)));
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', lib.name);
+  // Fills the card's height, but a one-shelf library would otherwise blow a
+  // single cell up to the whole card, its name in letters a centimetre high.
+  svg.style.height = 'min(100%, ' + (lines * 16 + 4) + 'mm)';
+  const mk = (name, attrs, text) => {
+    const n = document.createElementNS('http://www.w3.org/2000/svg', name);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (text !== undefined) n.textContent = text;
+    svg.appendChild(n);
+  };
+  const at = {};
+  S.data.boxes.filter(b => b.library === lib.id).forEach(b => { at[b.line + ':' + b.column] = b; });
+
+  for (let c = 0; c < columns; c++) {
+    mk('text', { x: left + c * (cell + gap) + cell / 2, y: 10, 'text-anchor': 'middle',
+                 class: 'pl-axis' }, letter(c));
+  }
+  for (let r = 1; r <= lines; r++) {
+    const y = top + (r - 1) * (cell + gap);
+    mk('text', { x: 7, y: y + cell / 2 + 4, 'text-anchor': 'middle', class: 'pl-axis' }, String(r));
+    for (let c = 0; c < columns; c++) {
+      const x = left + c * (cell + gap), box = at[r + ':' + letter(c)];
+      mk('rect', { x: x, y: y, width: cell, height: cell, rx: 4,
+                   class: 'pl-cell' + (box ? ' used' : '') });
+      if (!box) continue;
+      mk('text', { x: x + 5, y: y + 12, class: 'pl-ref' }, letter(c) + r);
+      const rows = wrapWords(box.name, 12, 3);
+      const startY = y + cell / 2 - (rows.length - 1) * 6 + 6;
+      rows.forEach((row, i) => mk('text', { x: x + cell / 2, y: startY + i * 12,
+                                            'text-anchor': 'middle', class: 'pl-name' }, row));
+    }
+  }
+  return svg;
+}
+
+function libraryCard(lib, size, opts) {
+  const boxes = S.data.boxes.filter(b => b.library === lib.id).length;
+  return el('article', { class: 'pcard pcard-lib size-' + size },
+    el('div', { class: 'pc-libinfo' },
+      el('span', { class: 'pc-label', text: t('cards.library') }),
+      el('h3', { class: 'pc-title', text: lib.name }),
+      lib.place ? el('div', { class: 'pc-place', text: lib.place }) : null,
+      el('div', { class: 'pc-meta' },
+        plural(lib.lines, 'cards.line', 'cards.lines') + ' × '
+          + plural(lib.columns, 'cards.column', 'cards.columns'),
+        el('br'),
+        plural(boxes, 'lib.box', 'lib.boxes') + ' · '
+          + plural(S.usage.libraries[lib.id] || 0, 'app.book', 'app.books')),
+      cardFoot('Homelib', lib.id)),
+    opts.plan ? el('div', { class: 'pc-plan' }, planSvg(lib)) : null);
+}
+
+function viewCards(kind, params) {
+  const p = new URLSearchParams(params);
+  const view = $('#view');
+  const sizes = CARD_SIZES[kind];
+  if (!sizes.includes(p.get('size'))) p.delete('size');
+  // A bookmark can outlive the library or shelf it names; the select would
+  // show "Toutes" while the sheet stayed silently empty.
+  if (p.get('library') && !S.libById[p.get('library')]) p.delete('library');
+  if (p.get('box') && !S.boxById[p.get('box')]) p.delete('box');
+
+  // Rewrite the hash without a hashchange, which would rebuild the whole view
+  // and take the focus out of the field being typed in.
+  const remember = () => {
+    const hash = cardsHash(kind, p);
+    history.replaceState(null, '', hash);
+    S.route = hash;
+  };
+  const setParam = (key, value, fallback) => {
+    // A debounced keystroke can land after the user has moved to another
+    // page; rewriting the hash then would put the cards back in the address.
+    if (!sheet.isConnected) return;
+    if (value === fallback || value === '' || value === null) p.delete(key);
+    else p.set(key, value);
+    remember();
+    draw();
+  };
+
+  const kinds = el('div', { class: 'cards-kinds' }, CARD_KINDS.map(k => el('a', {
+    class: 'btn small' + (k === kind ? ' active' : ''), href: cardsHash(k),
+    text: t('cards.kind.' + k) })));
+
+  const search = el('input', { type: 'search', value: p.get('q') || '', autocomplete: 'off',
+                               placeholder: t('app.search'), 'aria-label': t('app.search') });
+  search.addEventListener('input', debounce(() => setParam('q', search.value.trim(), ''), 150));
+
+  let librarySelect = null, boxSelect = null;
+  if (kind !== 'libraries') {
+    librarySelect = el('select', { onchange: () => {
+      // A shelf from another library would leave the sheet silently empty.
+      p.delete('box');
+      setParam('library', librarySelect.value, '');
+      if (boxSelect) fillBoxes();
+    } }, el('option', { value: '', text: t('export.all') }),
+      S.data.libraries.map(l => el('option', { value: l.id, text: l.name })));
+    librarySelect.value = p.get('library') || '';
+  }
+  function fillBoxes() {
+    const lib = librarySelect.value ? +librarySelect.value : null;
+    boxSelect.textContent = '';
+    boxSelect.appendChild(el('option', { value: '', text: t('export.all') }));
+    S.data.boxes.filter(b => lib === null || b.library === lib).sort(compareBoxes)
+      .forEach(b => boxSelect.appendChild(el('option', { value: b.id,
+        text: b.column + b.line + ' · ' + b.name + (lib === null ? ' — ' + b.library_name : '') })));
+    boxSelect.value = p.get('box') || '';
+  }
+  if (kind === 'books') {
+    boxSelect = el('select', { onchange: () => setParam('box', boxSelect.value, '') });
+    fillBoxes();
+  }
+
+  const sizeSelect = el('select', { onchange: () =>
+    setParam('size', sizeSelect.value, CARD_DEFAULT_SIZE[kind]) },
+    sizes.map(s => el('option', { value: s, text: t('cards.size.' + s) })));
+  sizeSelect.value = p.get('size') || CARD_DEFAULT_SIZE[kind];
+
+  const field = (label, control) => el('label', { class: 'field' },
+    el('span', { class: 'label', text: label }), control);
+  const option = (key, label, byDefault) => el('label', {},
+    el('input', { type: 'checkbox', checked: p.has(key) ? p.get(key) === '1' : byDefault,
+      onchange: ev => setParam(key, ev.target.checked ? '1' : '0', byDefault ? '1' : '0') }),
+    label);
+
+  const chips = el('div', { class: 'cards-chips' });
+  const count = el('span', { class: 'count' });
+  const warning = el('span', { class: 'hint' });
+  const printButton = el('button', { class: 'btn primary', text: '⎙ ' + t('cards.print'),
+                                     onclick: () => window.print() });
+  const sheet = el('div', { class: 'print-sheet' });
+
+  view.appendChild(el('div', { class: 'cards-view' },
+    el('div', { class: 'page-head no-print' }, el('h1', { text: t('cards.title') })),
+    el('div', { class: 'card panel cards-controls no-print' },
+      kinds,
+      el('div', { class: 'grid-3' },
+        librarySelect ? field(t('search.library'), librarySelect) : null,
+        boxSelect ? field(t('search.box'), boxSelect) : null,
+        field(t('app.search'), search),
+        field(t('cards.size'), sizeSelect)),
+      chips,
+      el('div', { class: 'checkrow' },
+        option('cut', t('cards.cut'), true),
+        kind === 'books' ? option('details', t('cards.details'), true) : null,
+        kind === 'books' ? option('deleted', t('search.showdeleted'), false) : null,
+        kind === 'boxes' ? option('list', t('cards.list'), false) : null,
+        kind === 'libraries' ? option('plan', t('cards.plan'), true) : null)),
+    el('div', { class: 'cards-summary no-print' }, printButton, count, warning),
+    el('div', { class: 'print-sheet-wrap' }, sheet)));
+
+  /* Filters that have no control of their own here -- a hand-picked id, or
+   * the detailed search fields carried over from the search page -- show as
+   * chips, so it is plain why the sheet holds what it holds. */
+  function drawChips() {
+    chips.textContent = '';
+    const chip = (label, key) => chips.appendChild(el('button', {
+      class: 'chip', text: label + ' ✕', title: t('app.clear'),
+      onclick: () => setParam(key, '', '') }));
+    if (p.get('id')) chip(t('cards.picked', idList(p.get('id')).length), 'id');
+    if (kind === 'books') {
+      [['title', 'search.title'], ['authors', 'search.authors'],
+       ['publisher', 'search.publisher'], ['shelf', 'search.box'], ['lib', 'search.library']]
+        .forEach(([key, label]) => { if (p.get(key)) chip(t(label) + ' : ' + p.get(key), key); });
+    }
+  }
+
+  function draw() {
+    drawChips();
+    const items = cardItems(kind, p);
+    sheet.textContent = '';
+    // Every book in the house is a few thousand cards: building them all is
+    // seconds of frozen page on a phone, so that takes a deliberate click.
+    const narrowed = kind !== 'books' || p.get('all') === '1'
+      || ['id', 'box', 'library', 'q', 'title', 'authors', 'publisher', 'shelf', 'lib']
+           .some(key => p.get(key));
+    if (!narrowed) {
+      count.textContent = plural(items.length, 'cards.card', 'cards.cards');
+      warning.textContent = '';
+      printButton.disabled = true;
+      sheet.appendChild(el('div', { class: 'empty' },
+        el('p', { text: t('cards.narrow') }),
+        el('button', { class: 'btn', text: t('cards.show_all', items.length),
+                       onclick: () => setParam('all', '1', '') })));
+      return;
+    }
+    const size = p.get('size') || CARD_DEFAULT_SIZE[kind];
+    const opts = {
+      details: p.get('details') !== '0', list: p.get('list') === '1', plan: p.get('plan') !== '0'
+    };
+    const build = kind === 'books' ? bookCard : kind === 'boxes' ? boxCard : libraryCard;
+    count.textContent = plural(items.length, 'cards.card', 'cards.cards');
+    warning.textContent = items.length > 400 ? t('cards.many') : '';
+    printButton.disabled = !items.length;
+    sheet.classList.toggle('no-cut', p.get('cut') === '0');
+    if (!items.length) {
+      sheet.appendChild(el('div', { class: 'empty', text: t('cards.none') }));
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    items.forEach(item => frag.appendChild(build(item, size, opts)));
+    sheet.appendChild(frag);
+  }
+  draw();
 }
 
 /* ------------------------------------------------------------------- chrome */
