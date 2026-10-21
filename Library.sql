@@ -1702,6 +1702,12 @@ INSERT INTO "authors" VALUES(1696,'Jean-Claude','Glasser');
 INSERT INTO "authors" VALUES(1697,'Jean','Monnet');
 INSERT INTO "authors" VALUES(1698,'Charles','de Gaulle');
 INSERT INTO "authors" VALUES(1699,'Lucien','Rebatet');
+INSERT INTO "authors" VALUES(1700,'Laurent','Gaulet');
+INSERT INTO "authors" VALUES(1701,'Robert','Spaemann');
+INSERT INTO "authors" VALUES(1702,'Marcel','Schneider');
+INSERT INTO "authors" VALUES(1703,'Pierre','Petit');
+INSERT INTO "authors" VALUES(1704,'Marcel','Landowski');
+INSERT INTO "authors" VALUES(1705,'Pierre','Citron');
 CREATE TABLE authors_backup( id integer, christian_name text, last_name text);
 INSERT INTO "authors_backup" VALUES(842,'Jacques','Bainvile');
 CREATE TABLE books(
@@ -6478,7 +6484,15 @@ INSERT INTO "books" VALUES(3517,'Mémoires de Jean Monnet','1|1697',18,'',143,1)
 INSERT INTO "books" VALUES(3518,'Mémoires de Guerre','1|1698',106,'',143,3);
 INSERT INTO "books" VALUES(3519,'Histoire de la littérature française','1|101',47,'Jusqu''à la Grande Guerre',143,2);
 INSERT INTO "books" VALUES(3520,'Une Histoire de la musique','1|1699',166,'Des origines à nos jours. Quatrième de couverture de Kléber Haedens',143,1);
-INSERT INTO "books" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays',143,6);
+INSERT INTO "books" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays
+Avec un index',143,7);
+INSERT INTO "books" VALUES(3522,'Le petit livre noir des collègues de bureau','1|1700',295,'',41,1);
+INSERT INTO "books" VALUES(3523,'Le Dieu du carnage','1|742',71,'',60,1);
+INSERT INTO "books" VALUES(3524,'Un philosophe face à la Révolution','1|1701',642,'La pensée politique de Louis de Bonald',67,1);
+INSERT INTO "books" VALUES(3525,'Wagner','1|1702',22,'',32,1);
+INSERT INTO "books" VALUES(3526,'Verdi','1|1703',22,'',32,1);
+INSERT INTO "books" VALUES(3527,'Honegger','1|1704',22,'',32,1);
+INSERT INTO "books" VALUES(3528,'Couperin','1|1705',22,'Sur François II Couperin dit Le Grand',32,1);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
@@ -7591,6 +7605,7 @@ INSERT INTO "books_backup" VALUES(2047,'Le Livre de la Grâce spéciale','1|1088
 INSERT INTO "books_backup" VALUES(2048,'Œuvres','1|1089',492,'Avec une préface de Mgr Darbois',46,NULL);
 INSERT INTO "books_backup" VALUES(2186,'Martyrologe Romain','collective',188,'Par des moines de Farnborough et de Solesmes. Édition de 1948.',46,NULL);
 INSERT INTO "books_backup" VALUES(1286,'Missel quotidien et vespéral','2|760|22',331,'Traductions bibliques du chanoine Osty',47,NULL);
+INSERT INTO "books_backup" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays',143,6);
 CREATE TABLE boxes (
 id INTEGER PRIMARY KEY,
 name TEXT,
@@ -8524,5 +8539,6 @@ INSERT INTO "publisher" VALUES(638,'Glénat');
 INSERT INTO "publisher" VALUES(639,'Sequoia');
 INSERT INTO "publisher" VALUES(640,'Cheminements');
 INSERT INTO "publisher" VALUES(641,'M. A.');
+INSERT INTO "publisher" VALUES(642,'Hora Decima');
 CREATE TABLE publisher_backup( id integer, name text);
 COMMIT;
