@@ -46,11 +46,23 @@ def is_same_sum(server_sum,db):
     if server_sum == sum:
         return True
 
-def download(server_sum):
-    while not is_same_sum(server_sum,temp_lib):
+def download(server_sum, attempts=5):
+    """Fetch the database until it matches the server's checksum.
+
+    The web application writes to that file at any moment, so a save landing
+    between the checksum and the download changes the expected sum: ask for it
+    again each round, and give up after a few tries rather than loop forever.
+    """
+    for _ in range(attempts):
         urllib.request.urlretrieve(server + 'downloader.py',temp_lib)
-    os.remove(library)
-    os.rename(temp_lib,library)
+        if is_same_sum(server_sum,temp_lib):
+            os.replace(temp_lib,library)
+            return True
+        server_sum = checksum()
+        if not server_sum:
+            return False
+    print('Database kept changing during download; local copy left as it was')
+    return False
 
 def updateDB():
     sum = checksum()
