@@ -106,6 +106,6 @@ if curl -fsS "http://127.0.0.1/homelib/healthz" >/dev/null 2>&1; then
 fi
 echo
 echo "Homelib is at  http://$(hostname)/homelib/"
-echo "           and http://$(hostname):$PORT/   (what dbupdater.py uses)"
+echo "           and http://$(hostname):$PORT/"
 echo "Logs:          journalctl -u homelib-web -f"
 echo "Daily push:    systemctl list-timers homelib-push"

@@ -1,6 +1,6 @@
 # Homelib — application web
 
-Tout ce que faisaient l'interface Qt (`gui/`) et la ligne de commande
+Tout ce que faisaient l'ancienne interface Qt (retirée) et la ligne de commande
 (`homelib.pyw`, `clfun.py`) se retrouve ici, dans un navigateur, sur ordinateur
 comme sur téléphone.
 
@@ -65,9 +65,8 @@ devenus `book[5]`.
 ## Deux points à savoir
 
 **Le Pi fait foi.** L'application web écrit dans le `Library.db` de palantir.
-Le programme de bureau continue de fonctionner, mais `dbupdater.py` remplace sa
-copie par celle du Pi dès qu'elles diffèrent : saisir un livre dans l'interface
-Qt pendant que le Pi tourne, c'est le perdre à la synchronisation suivante.
+L'interface Qt et son `dbupdater.py` ont été retirés ; la ligne de commande
+(`clfun.py`) travaille sur une copie locale, qui ne remonte pas toute seule.
 
 **Rien n'est jamais effacé de la base.** Supprimer un livre le marque dans
 `deleted_books` ; fusionner deux auteurs laisse le perdant en place, sans livre.
