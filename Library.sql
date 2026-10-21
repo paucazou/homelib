@@ -1700,6 +1700,7 @@ INSERT INTO "authors" VALUES(1694,'Jean-Louis','Fournier');
 INSERT INTO "authors" VALUES(1695,'Marion','Vidal');
 INSERT INTO "authors" VALUES(1696,'Jean-Claude','Glasser');
 INSERT INTO "authors" VALUES(1697,'Jean','Monnet');
+INSERT INTO "authors" VALUES(1698,'Charles','de Gaulle');
 CREATE TABLE authors_backup( id integer, christian_name text, last_name text);
 INSERT INTO "authors_backup" VALUES(842,'Jacques','Bainvile');
 CREATE TABLE books(
@@ -6473,6 +6474,8 @@ INSERT INTO "books" VALUES(3514,'Alice et le carnet vert','1|931',4,'',128,1);
 INSERT INTO "books" VALUES(3515,'Grammaire française et impertinente','1|1694',18,'2001',44,1);
 INSERT INTO "books" VALUES(3516,'Les plus célèbres répliques du cinéma','2|1695|1696',641,'Tome 2',44,1);
 INSERT INTO "books" VALUES(3517,'Mémoires de Jean Monnet','1|1697',18,'',143,1);
+INSERT INTO "books" VALUES(3518,'Mémoires de Guerre','1|1698',106,'',143,3);
+INSERT INTO "books" VALUES(3519,'Histoire de la littérature française','1|101',47,'Jusqu''à la Grande Guerre',143,2);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
