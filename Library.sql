@@ -1708,6 +1708,7 @@ INSERT INTO "authors" VALUES(1702,'Marcel','Schneider');
 INSERT INTO "authors" VALUES(1703,'Pierre','Petit');
 INSERT INTO "authors" VALUES(1704,'Marcel','Landowski');
 INSERT INTO "authors" VALUES(1705,'Pierre','Citron');
+INSERT INTO "authors" VALUES(1706,'Philippe','A. de Saint-Jean');
 CREATE TABLE authors_backup( id integer, christian_name text, last_name text);
 INSERT INTO "authors_backup" VALUES(842,'Jacques','Bainvile');
 CREATE TABLE books(
@@ -6493,6 +6494,8 @@ INSERT INTO "books" VALUES(3525,'Wagner','1|1702',22,'',32,1);
 INSERT INTO "books" VALUES(3526,'Verdi','1|1703',22,'',32,1);
 INSERT INTO "books" VALUES(3527,'Honegger','1|1704',22,'',32,1);
 INSERT INTO "books" VALUES(3528,'Couperin','1|1705',22,'Sur François II Couperin dit Le Grand',32,1);
+INSERT INTO "books" VALUES(3529,'La Mort du dieu déchu','1|1706',392,'Un chef-d''oeuvre 😜',129,1);
+INSERT INTO "books" VALUES(3530,'Théâtre de Tchekhov','1|1004',416,'',138,3);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
