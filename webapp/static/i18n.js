@@ -157,7 +157,14 @@ window.I18N = {
     'cards.box_meta': 'Ligne {0} · colonne {1}',
     'cards.volume': 'volume', 'cards.volumes': 'volumes',
     'cards.line': 'ligne', 'cards.lines': 'lignes',
-    'cards.column': 'colonne', 'cards.columns': 'colonnes'
+    'cards.column': 'colonne', 'cards.columns': 'colonnes',
+    'cards.kind.pick': 'Sélection',
+    'cards.pick_label': 'Ajouter à la sélection',
+    'cards.pick_add': 'Titre, auteur, étagère ou bibliothèque…',
+    'cards.pick_empty': 'Cherchez un livre, une étagère ou une bibliothèque par son nom, puis cochez les fiches à imprimer.',
+    'cards.pick_remove': 'Retirer de la sélection',
+    'cards.pick_all': 'Tout cocher', 'cards.pick_none': 'Tout décocher',
+    'cards.pick_clear': 'Vider la sélection'
   },
 
   en: {
@@ -313,6 +320,13 @@ window.I18N = {
     'cards.box_meta': 'Line {0} · column {1}',
     'cards.volume': 'volume', 'cards.volumes': 'volumes',
     'cards.line': 'line', 'cards.lines': 'lines',
-    'cards.column': 'column', 'cards.columns': 'columns'
+    'cards.column': 'column', 'cards.columns': 'columns',
+    'cards.kind.pick': 'Selection',
+    'cards.pick_label': 'Add to the selection',
+    'cards.pick_add': 'Title, author, box or library…',
+    'cards.pick_empty': 'Look up a book, a box or a library by name, then tick the cards to print.',
+    'cards.pick_remove': 'Remove from the selection',
+    'cards.pick_all': 'Tick all', 'cards.pick_none': 'Untick all',
+    'cards.pick_clear': 'Clear the selection'
   }
 };

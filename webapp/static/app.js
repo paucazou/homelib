@@ -373,8 +373,19 @@ function combo(config) {
   }
   function matches() {
     const needle = norm(input.value);
-    const exact = items.find(i => norm(i.label) === needle);
-    let out = needle ? items.filter(i => norm(i.label).includes(needle)) : items.slice();
+    // In words mode several entries can share a label -- two copies of a
+    // book, a shelf named like its library -- so Enter never guesses.
+    const exact = config.words ? null : items.find(i => norm(i.label) === needle);
+    let out;
+    if (config.words) {
+      // Every word, in any order and in the label or its subtitle: "wolfe
+      // claw" finds the book whose title is "Shadow & Claw".  Nothing until
+      // something is typed, the catalogue being thousands of entries long.
+      const words = needle.split(/\s+/).filter(Boolean);
+      out = words.length ? items.filter(i => words.every(w => i.key.includes(w))) : [];
+    } else {
+      out = needle ? items.filter(i => norm(i.label).includes(needle)) : items.slice();
+    }
     out = out.slice(0, 60);
     return { list: out, exact: exact };
   }
@@ -1094,7 +1105,7 @@ const ROUTES = [
   [/^#\/history$/, () => viewHistory()],
   [/^#\/stats$/, () => viewStats()],
   [/^#\/export$/, () => viewExport()],
-  [/^#\/cards(?:\/(books|boxes|libraries))?(?:\?(.*))?$/,
+  [/^#\/cards(?:\/(books|boxes|libraries|pick))?(?:\?(.*))?$/,
    m => viewCards(m[1] || 'books', m[2] || '')]
 ];
 
@@ -1901,7 +1912,7 @@ function viewExport() {
  * page can link to its own cards, and a reload or the Back button lands on the
  * same sheet. */
 
-const CARD_KINDS = ['books', 'boxes', 'libraries'];
+const CARD_KINDS = ['books', 'boxes', 'libraries', 'pick'];
 const CARD_SIZES = {
   books: ['s', 'm', 'l'],
   boxes: ['s', 'm', 'l'],
@@ -2090,6 +2101,7 @@ function libraryCard(lib, size, opts) {
 }
 
 function viewCards(kind, params) {
+  if (kind === 'pick') { viewPickedCards(params); return; }
   const p = new URLSearchParams(params);
   const view = $('#view');
   const sizes = CARD_SIZES[kind];
@@ -2239,6 +2251,216 @@ function viewCards(kind, params) {
     items.forEach(item => frag.appendChild(build(item, size, opts)));
     sheet.appendChild(frag);
   }
+  draw();
+}
+
+/* Hand-picked cards of every kind on the same sheets: a book, a shelf and a
+ * library looked up by name, each ticked or not.  The selection is one ordered
+ * list in the hash -- sel=b12,x3,l4 for book 12, box 3, library 4 -- and the
+ * unticked ones go in off=, so they stay listed without being printed. */
+const PICK_KINDS = { b: 'books', x: 'boxes', l: 'libraries' };
+const PICK_SIZES = CARD_SIZES.books;
+const PICK_DEFAULT_SIZE = CARD_DEFAULT_SIZE.books;
+
+function pickTarget(token) {
+  const kind = PICK_KINDS[token[0]], id = parseInt(token.slice(1), 10);
+  if (!kind || String(id) !== token.slice(1)) return null;
+  const item = kind === 'books' ? S.byId[id] : kind === 'boxes' ? S.boxById[id] : S.libById[id];
+  // A book sent to the trash since counts as gone, as it does in the picker.
+  if (!item || item.deleted) return null;
+  return { token: token, kind: kind, item: item };
+}
+
+/* The line under a name, in the suggestions and in the selection alike: the
+ * shelf and its library tell apart two copies of the same book. */
+function pickSub(kind, item) {
+  if (kind === 'books') {
+    return [item._authors, [item.box_ref, item.library].filter(Boolean).join(' — ')]
+      .filter(Boolean).join(' · ');
+  }
+  if (kind === 'boxes') return (item.column || '') + item.line + ' — ' + item.library_name;
+  return (item.place || '').split('\n')[0];
+}
+
+function pickChoices() {
+  const out = [];
+  const add = (prefix, kind, item, label, tagged) => {
+    const sub = [tagged ? t('cards.kind.' + kind) : '', pickSub(kind, item)]
+      .filter(Boolean).join(' · ');
+    out.push({ id: prefix + item.id, label: label, sub: sub, key: norm(label + ' ' + sub) });
+  };
+  S.data.libraries.slice().sort((a, b) => collator.compare(a.name, b.name))
+    .forEach(l => add('l', 'libraries', l, l.name, true));
+  S.data.boxes.slice().sort(compareBoxes).forEach(b => add('x', 'boxes', b, b.name, true));
+  S.data.books.filter(b => !b.deleted)
+    .sort((a, b) => collator.compare(a.title, b.title))
+    .forEach(b => add('b', 'books', b, b.title, false));
+  return out;
+}
+
+function viewPickedCards(params) {
+  const p = new URLSearchParams(params);
+  const view = $('#view');
+  if (!PICK_SIZES.includes(p.get('size'))) p.delete('size');
+  // Tokens whose book, shelf or library has gone since the link was made are
+  // dropped, and so are repeats.
+  const picked = [];
+  (p.get('sel') || '').split(',').forEach(token => {
+    const target = pickTarget(token);
+    if (target && !picked.some(o => o.token === token)) picked.push(target);
+  });
+  const off = new Set((p.get('off') || '').split(',')
+    .filter(token => picked.some(o => o.token === token)));
+
+  const remember = () => {
+    if (!sheet.isConnected) return;
+    if (picked.length) p.set('sel', picked.map(o => o.token).join(','));
+    else p.delete('sel');
+    if (off.size) p.set('off', Array.from(off).join(','));
+    else p.delete('off');
+    // Commas left as they are, so the link reads sel=b12,x3,l4.
+    const hash = cardsHash('pick', p).replace(/%2C/gi, ',');
+    history.replaceState(null, '', hash);
+    S.route = hash;
+  };
+  const changed = () => { remember(); drawList(); draw(); };
+  const setParam = (key, value, fallback) => {
+    if (value === fallback) p.delete(key); else p.set(key, value);
+    remember();
+    draw();
+  };
+
+  const kinds = el('div', { class: 'cards-kinds' }, CARD_KINDS.map(k => el('a', {
+    class: 'btn small' + (k === 'pick' ? ' active' : ''), href: cardsHash(k),
+    text: t('cards.kind.' + k) })));
+
+  const picker = combo({
+    items: [], words: true, placeholder: t('cards.pick_add'),
+    onChange: token => {
+      if (token === null) return;
+      const target = pickTarget(token);
+      if (!target) return;
+      // Picking again what is already listed ticks it rather than doubling it.
+      if (!picked.some(o => o.token === token)) picked.push(target);
+      off.delete(token);
+      picker.value = null;
+      changed();
+    }
+  });
+  picker.input.setAttribute('aria-label', t('cards.pick_add'));
+  // Sorting the whole catalogue waits until someone means to search it.
+  let choicesReady = false;
+  picker.input.addEventListener('focus', () => {
+    if (!choicesReady) { picker.setItems(pickChoices()); choicesReady = true; }
+  });
+
+  const sizeSelect = el('select', { onchange: () => setParam('size', sizeSelect.value, PICK_DEFAULT_SIZE) },
+    PICK_SIZES.map(s => el('option', { value: s, text: t('cards.size.' + s) })));
+  sizeSelect.value = p.get('size') || PICK_DEFAULT_SIZE;
+
+  const field = (label, control) => el('label', { class: 'field' },
+    el('span', { class: 'label', text: label }), control);
+  const option = (key, label, byDefault) => el('label', {},
+    el('input', { type: 'checkbox', checked: p.has(key) ? p.get(key) === '1' : byDefault,
+      onchange: ev => setParam(key, ev.target.checked ? '1' : '0', byDefault ? '1' : '0') }),
+    label);
+
+  const list = el('ul', { class: 'pick-list' });
+  const bulk = el('div', { class: 'pick-bulk' });
+  const count = el('span', { class: 'count' });
+  const printButton = el('button', { class: 'btn primary', text: '⎙ ' + t('cards.print'),
+                                     onclick: () => window.print() });
+  const sheet = el('div', { class: 'print-sheet' });
+
+  view.appendChild(el('div', { class: 'cards-view' },
+    el('div', { class: 'page-head no-print' }, el('h1', { text: t('cards.title') })),
+    el('div', { class: 'card panel cards-controls no-print' },
+      kinds,
+      el('div', { class: 'grid-2' },
+        // Not a <label>: a click on a suggestion would bounce to the input.
+        el('div', { class: 'field' },
+          el('span', { class: 'label', text: t('cards.pick_label') }), picker.node),
+        field(t('cards.size'), sizeSelect)),
+      list, bulk,
+      el('div', { class: 'checkrow' },
+        option('cut', t('cards.cut'), true),
+        option('details', t('cards.details'), true),
+        option('list', t('cards.list'), false),
+        option('plan', t('cards.plan'), true))),
+    el('div', { class: 'cards-summary no-print' }, printButton, count),
+    el('div', { class: 'print-sheet-wrap' }, sheet)));
+
+  function drawList() {
+    list.textContent = '';
+    bulk.textContent = '';
+    if (!picked.length) {
+      list.appendChild(el('li', { class: 'hint', text: t('cards.pick_empty') }));
+      return;
+    }
+    picked.forEach((o, i) => {
+      const name = o.kind === 'books' ? o.item.title : o.item.name;
+      const sub = pickSub(o.kind, o.item);
+      list.appendChild(el('li', {},
+        el('label', {},
+          el('input', { type: 'checkbox', checked: !off.has(o.token), onchange: ev => {
+            if (ev.target.checked) off.delete(o.token); else off.add(o.token);
+            changed();
+          } }),
+          el('span', { class: 'pick-kind', text: t('cards.kind.' + o.kind) }),
+          el('span', { class: 'pick-name', text: name }),
+          sub ? el('span', { class: 'sub', text: sub }) : null),
+        el('button', { class: 'icon-btn', text: '✕', title: t('cards.pick_remove'),
+                       'aria-label': t('cards.pick_remove') + ' : ' + name, onclick: () => {
+          picked.splice(i, 1);
+          off.delete(o.token);
+          changed();
+        } })));
+    });
+    bulk.appendChild(el('button', { class: 'btn small ghost', text: t('cards.pick_all'),
+      onclick: () => { off.clear(); changed(); } }));
+    bulk.appendChild(el('button', { class: 'btn small ghost', text: t('cards.pick_none'),
+      onclick: () => { picked.forEach(o => off.add(o.token)); changed(); } }));
+    bulk.appendChild(el('button', { class: 'btn small ghost', text: t('cards.pick_clear'),
+      onclick: () => { picked.length = 0; off.clear(); changed(); } }));
+  }
+
+  function draw() {
+    const size = p.get('size') || PICK_DEFAULT_SIZE;
+    const opts = {
+      details: p.get('details') !== '0', list: p.get('list') === '1', plan: p.get('plan') !== '0'
+    };
+    // Kind by kind, so that cards of one size follow each other and tile the
+    // page; within a kind, in the order they were picked.
+    const order = Object.values(PICK_KINDS);
+    const items = picked.filter(o => !off.has(o.token))
+      .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+    sheet.textContent = '';
+    sheet.classList.toggle('no-cut', p.get('cut') === '0');
+    count.textContent = plural(items.length, 'cards.card', 'cards.cards');
+    printButton.disabled = !items.length;
+    if (!items.length) {
+      sheet.appendChild(el('div', { class: 'empty', text: t('cards.pick_empty') }));
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    items.forEach((o, i) => {
+      if (o.kind === 'libraries' && size === 's') {
+        // A library on a label would lose its plan and most of its name: it
+        // takes a card, on a page of its own so the label sheet stays whole.
+        if (i > 0 && items[i - 1].kind !== 'libraries') {
+          frag.appendChild(el('div', { class: 'pc-pagebreak' }));
+        }
+        frag.appendChild(libraryCard(o.item, 'm', opts));
+        return;
+      }
+      frag.appendChild(o.kind === 'books' ? bookCard(o.item, size, opts)
+        : o.kind === 'boxes' ? boxCard(o.item, size, opts)
+        : libraryCard(o.item, size, opts));
+    });
+    sheet.appendChild(frag);
+  }
+
+  drawList();
   draw();
 }
 

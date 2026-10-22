@@ -45,8 +45,11 @@ L'application répond alors sur **http://palantir:8888/**.
   bibliothèque (avec le plan de ses étagères).  Chaque livre, étagère et
   bibliothèque a son bouton « Fiche » ; la page Fiches imprime en masse, filtrée
   par bibliothèque, étagère ou recherche, en quatre formats qui pavent une page
-  A4 (dont les planches de 21 étiquettes 63,5 × 38,1 mm).  Tout se fait dans le
-  navigateur, avec sa boîte d'impression.
+  A4 (dont les planches de 21 étiquettes 63,5 × 38,1 mm).  L'onglet
+  « Sélection » mélange les trois : on cherche par nom (« confessions
+  rousseau », « louis xv »…), on coche, et seules ces fiches s'impriment, sur
+  les mêmes pages.  Tout se fait dans le navigateur, avec sa boîte
+  d'impression.
 
 ## La colonne `volumes`
 

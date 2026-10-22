@@ -216,8 +216,8 @@ h3 { font-size: 1rem; }
 
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-label.field { display: block; margin-bottom: 12px; }
-label.field > span.label {
+label.field, .cards-controls div.field { display: block; margin-bottom: 12px; }
+label.field > span.label, .cards-controls div.field > span.label {
   display: block; margin-bottom: 4px;
   font-size: .78rem; font-weight: 600; letter-spacing: .03em;
   text-transform: uppercase; color: var(--ink-faint);
@@ -578,6 +578,20 @@ td.more { color: var(--ink-faint); font-size: .84rem; white-space: pre-wrap; }
 .cards-kinds .btn.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
 .cards-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .cards-chips:empty { display: none; }
+.pick-list { list-style: none; margin: 4px 0 10px; padding: 0; }
+.pick-list li { display: flex; align-items: center; gap: 8px; padding: 3px 0;
+                border-bottom: 1px solid var(--rule); }
+.pick-list li.hint { border: 0; color: var(--ink-faint); font-size: .88rem; }
+.pick-list label { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px;
+                   flex-wrap: wrap; font-size: .9rem; cursor: pointer; }
+.pick-list input { width: 17px; height: 17px; accent-color: var(--accent); align-self: center; }
+.pick-list .pick-kind { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+                        color: var(--accent); }
+.pick-list .sub { color: var(--ink-faint); font-size: .78rem; }
+.pick-bulk { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.pick-bulk:empty { display: none; }
+/* Ends the row, and on paper the page, before cards of another size. */
+.pc-pagebreak { flex-basis: 100%; height: 0; break-before: page; page-break-before: always; }
 .cards-summary { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .cards-summary .count { color: var(--ink-faint); font-size: .85rem; }
 .print-sheet-wrap { overflow-x: auto; padding: 12px; border-radius: var(--radius);
