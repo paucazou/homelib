@@ -1709,6 +1709,16 @@ INSERT INTO "authors" VALUES(1703,'Pierre','Petit');
 INSERT INTO "authors" VALUES(1704,'Marcel','Landowski');
 INSERT INTO "authors" VALUES(1705,'Pierre','Citron');
 INSERT INTO "authors" VALUES(1706,'Philippe','A. de Saint-Jean');
+INSERT INTO "authors" VALUES(1707,'Pierre','de Bérulle');
+INSERT INTO "authors" VALUES(1708,'Henri','IV');
+INSERT INTO "authors" VALUES(1709,'Paul','Couderc');
+INSERT INTO "authors" VALUES(1710,'Pierre','Couderc');
+INSERT INTO "authors" VALUES(1711,'G.','Weil');
+INSERT INTO "authors" VALUES(1712,'J.','Chassard');
+INSERT INTO "authors" VALUES(1713,'R.','Fabre');
+INSERT INTO "authors" VALUES(1714,'G.','Dillemann');
+INSERT INTO "authors" VALUES(1715,'V.-L.','Saulnier');
+INSERT INTO "authors" VALUES(1716,'Geneviève','Rodis-Lewis');
 CREATE TABLE authors_backup( id integer, christian_name text, last_name text);
 INSERT INTO "authors_backup" VALUES(842,'Jacques','Bainvile');
 CREATE TABLE books(
@@ -5506,7 +5516,7 @@ INSERT INTO "books" VALUES(2792,'Oeuvres de Bossuet','1|286',562,'Incomplet
 5 : Education, administration
 
 10 : Controverses, ouvrages sur le quiétisme
-11 : Controverses et correspondances',48,6);
+11 : Controverses et correspondances',144,6);
 INSERT INTO "books" VALUES(2793,'Dictionnaire français-latin','1|302',4,'',46,1);
 INSERT INTO "books" VALUES(2794,'Lettres et opuscules','1|664',563,'Deuxième volume uniquement',48,1);
 INSERT INTO "books" VALUES(2795,'Correspondance diplomatique','1|664',508,'Deux volumes',48,2);
@@ -5772,7 +5782,7 @@ Latin',128,2);
 INSERT INTO "books" VALUES(2977,'Sainte Cécile et la société romaine','1|174',31,'',137,1);
 INSERT INTO "books" VALUES(2978,'Missale romanum 1911','collective',76,'Edition de 1911',128,1);
 INSERT INTO "books" VALUES(2979,'Sentences - Somme théologique','2|1506|953',551,'Quatre volumes
-Latin',139,4);
+Latin',144,4);
 INSERT INTO "books" VALUES(2980,'Theologia moralis','1|872',232,'Quatre volumes',137,4);
 INSERT INTO "books" VALUES(2981,'Saint François d''Assise','collective',106,'Gros et malcommode',137,1);
 INSERT INTO "books" VALUES(2982,'Sanctae Scripturae cursus completus','collective',232,'Douze volumes
@@ -6501,6 +6511,12 @@ INSERT INTO "books" VALUES(3532,'Histoire de la littérature anglaise','collecti
 Tome 2 : 1660-1964',140,2);
 INSERT INTO "books" VALUES(3533,'Œuvres complètes de Bossuet','1|286',552,'1870',46,12);
 INSERT INTO "books" VALUES(3534,'Œuvres complètes de Pouchkine','1|1008',643,'Tome 3 seulement : autobiographie, critique, correspondance.',139,1);
+INSERT INTO "books" VALUES(3535,'Œuvres de Pierre de Bérulle','1|1707',246,'1995 - Huit volumes, il manque le 6',139,7);
+INSERT INTO "books" VALUES(3536,'Les plus belles lettres de Henri IV','1|1708',301,'',139,1);
+INSERT INTO "books" VALUES(3537,'Le Calendrier','1|1710',11,'Que sais-je ?',139,1);
+INSERT INTO "books" VALUES(3538,'Les grandes dates des littératures étrangères','2|1711|1712',11,'Que sais-je ?',139,1);
+INSERT INTO "books" VALUES(3539,'Histoire de la pharmacie','2|1713|1714',11,'Que sais-je ?',139,1);
+INSERT INTO "books" VALUES(3540,'La Littérature française du Siècle classique','1|1715',11,'Que sais-je ?',139,1);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
@@ -7622,6 +7638,17 @@ INSERT INTO "books_backup" VALUES(3000,'Oeuvres de St Bernard','1|1209',460,'Cin
 Tomes disponibles : 2 à 5 + table
 Bilingue
 Edition de Dion et Charpentier',139,5);
+INSERT INTO "books_backup" VALUES(2979,'Sentences - Somme théologique','2|1506|953',551,'Quatre volumes
+Latin',139,4);
+INSERT INTO "books_backup" VALUES(2792,'Oeuvres de Bossuet','1|286',562,'Incomplet
+6 volumes disponibles
+2 : Sermons
+3 : Piété
+4 : Education
+5 : Education, administration
+
+10 : Controverses, ouvrages sur le quiétisme
+11 : Controverses et correspondances',48,6);
 CREATE TABLE boxes (
 id INTEGER PRIMARY KEY,
 name TEXT,
