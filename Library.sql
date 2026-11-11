@@ -6517,6 +6517,7 @@ INSERT INTO "books" VALUES(3537,'Le Calendrier','1|1710',11,'Que sais-je ?',139,
 INSERT INTO "books" VALUES(3538,'Les grandes dates des littératures étrangères','2|1711|1712',11,'Que sais-je ?',139,1);
 INSERT INTO "books" VALUES(3539,'Histoire de la pharmacie','2|1713|1714',11,'Que sais-je ?',139,1);
 INSERT INTO "books" VALUES(3540,'La Littérature française du Siècle classique','1|1715',11,'Que sais-je ?',139,1);
+INSERT INTO "books" VALUES(3541,'Descartes et le rationalisme','1|1716',11,'Que sais-je ?',139,1);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
