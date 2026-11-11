@@ -6430,7 +6430,7 @@ INSERT INTO "books" VALUES(3463,'Papa, s''il te plaît, c''est beau, l''amour ?'
 Éducation affective et sexuelle',130,1);
 INSERT INTO "books" VALUES(3464,'Dis, en vrai, c''est quoi l''amour ?','1|1678',302,'Corps Amour Vie Sexualité',130,1);
 INSERT INTO "books" VALUES(3465,'Initiation à la logique','1|1679',392,'',139,1);
-INSERT INTO "books" VALUES(3466,'Hebrew and English Lexicon for the Old Testament','1|1680',392,'Deux volumes, dont le deuxième comprent l''araméen de l''AT',139,2);
+INSERT INTO "books" VALUES(3466,'Hebrew and English Lexicon for the Old Testament','1|1680',392,'Deux volumes, dont le deuxième comprend l''araméen de l''AT',47,2);
 INSERT INTO "books" VALUES(3467,'L''épée de feu','1|526',18,'Roman',139,1);
 INSERT INTO "books" VALUES(3468,'Les Clients du bon chien jaune','1|1638',20,'Texte probablement tronqué ou adapté.',127,1);
 INSERT INTO "books" VALUES(3469,'Les Six compagnons au Gouffre Marzal','1|802',4,'',127,1);
@@ -7616,6 +7616,7 @@ INSERT INTO "books_backup" VALUES(3521,'Dictionnaire des œuvres','collective',1
 INSERT INTO "books_backup" VALUES(2451,'L''Année liturgique','1|174',15,'15 volumes',46,15);
 INSERT INTO "books_backup" VALUES(7,'The Lord of the Rings','1|9',7,'50th Anniversary Edition',48,1);
 INSERT INTO "books_backup" VALUES(2793,'Dictionnaire français-latin','1|302',4,'',48,1);
+INSERT INTO "books_backup" VALUES(3466,'Hebrew and English Lexicon for the Old Testament','1|1680',392,'Deux volumes, dont le deuxième comprent l''araméen de l''AT',139,2);
 CREATE TABLE boxes (
 id INTEGER PRIMARY KEY,
 name TEXT,
