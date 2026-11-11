@@ -1722,6 +1722,7 @@ INSERT INTO "authors" VALUES(1716,'Geneviève','Rodis-Lewis');
 INSERT INTO "authors" VALUES(1717,'Jean-Charles','Moreux');
 INSERT INTO "authors" VALUES(1718,'G.','Bianquis');
 INSERT INTO "authors" VALUES(1719,'Jean','Malignon');
+INSERT INTO "authors" VALUES(1720,'Cornelius','Jansen');
 CREATE TABLE authors_backup( id integer, christian_name text, last_name text);
 INSERT INTO "authors_backup" VALUES(842,'Jacques','Bainvile');
 CREATE TABLE books(
@@ -6524,6 +6525,7 @@ INSERT INTO "books" VALUES(3541,'Descartes et le rationalisme','1|1716',11,'Que 
 INSERT INTO "books" VALUES(3542,'Histoire de l''Architecture','1|1717',11,'Que sais-je ?',139,1);
 INSERT INTO "books" VALUES(3543,'Histoire de la littérature allemande','1|1718',5,'',139,1);
 INSERT INTO "books" VALUES(3544,'Rameau','1|1719',22,'',139,1);
+INSERT INTO "books" VALUES(3545,'Commentarius in sancta Jesu Christi Evangelia','1|1720',644,'Édition expurgée (?)',144,1);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
@@ -8596,5 +8598,6 @@ INSERT INTO "publisher" VALUES(640,'Cheminements');
 INSERT INTO "publisher" VALUES(641,'M. A.');
 INSERT INTO "publisher" VALUES(642,'Hora Decima');
 INSERT INTO "publisher" VALUES(643,'André Bonne');
+INSERT INTO "publisher" VALUES(644,'Serstevens');
 CREATE TABLE publisher_backup( id integer, name text);
 COMMIT;
