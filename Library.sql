@@ -5817,7 +5817,7 @@ Bilingue',136,2);
 INSERT INTO "books" VALUES(3000,'Oeuvres de St Bernard','1|1209',460,'Cinq tomes
 Tomes disponibles : 2 à 5 + table
 Bilingue
-Edition de Dion et Charpentier',139,5);
+Edition de Dion et Charpentier',144,5);
 INSERT INTO "books" VALUES(3001,'Apocryphes I','1|793',392,'Premier volume en format A4 (l''autre version en A5 est illisible sans loupe). Il contient seulement les 298 premières pages, c''est-à-dire tous les textes apocryphes sans les dissertations qui suivent.',124,1);
 INSERT INTO "books" VALUES(3002,'Cent ans de modernisme','1|1512',236,'Généalogie du concile Vatican II',102,1);
 INSERT INTO "books" VALUES(3003,'Histoire Sainte','1|658',305,'Miche de pain',97,1);
@@ -6500,6 +6500,7 @@ INSERT INTO "books" VALUES(3531,'Dictionnaire biographique des auteurs de tous l
 INSERT INTO "books" VALUES(3532,'Histoire de la littérature anglaise','collective',4,'Tome 1 : 650-1660
 Tome 2 : 1660-1964',140,2);
 INSERT INTO "books" VALUES(3533,'Œuvres complètes de Bossuet','1|286',552,'1870',46,12);
+INSERT INTO "books" VALUES(3534,'Œuvres complètes de Pouchkine','1|1008',643,'Tome 3 seulement : autobiographie, critique, correspondance.',139,1);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
@@ -7617,6 +7618,10 @@ INSERT INTO "books_backup" VALUES(2451,'L''Année liturgique','1|174',15,'15 vol
 INSERT INTO "books_backup" VALUES(7,'The Lord of the Rings','1|9',7,'50th Anniversary Edition',48,1);
 INSERT INTO "books_backup" VALUES(2793,'Dictionnaire français-latin','1|302',4,'',48,1);
 INSERT INTO "books_backup" VALUES(3466,'Hebrew and English Lexicon for the Old Testament','1|1680',392,'Deux volumes, dont le deuxième comprent l''araméen de l''AT',139,2);
+INSERT INTO "books_backup" VALUES(3000,'Oeuvres de St Bernard','1|1209',460,'Cinq tomes
+Tomes disponibles : 2 à 5 + table
+Bilingue
+Edition de Dion et Charpentier',139,5);
 CREATE TABLE boxes (
 id INTEGER PRIMARY KEY,
 name TEXT,
@@ -7749,8 +7754,8 @@ INSERT INTO "boxes" VALUES(123,'Rapide',29,4,'A');
 INSERT INTO "boxes" VALUES(124,'Suarez',35,1,'A');
 INSERT INTO "boxes" VALUES(125,'Verne',36,1,'A');
 INSERT INTO "boxes" VALUES(126,'Bible Migne',37,1,'A');
-INSERT INTO "boxes" VALUES(127,'Veuillot',38,3,'A');
-INSERT INTO "boxes" VALUES(128,'Augustinus',38,2,'A');
+INSERT INTO "boxes" VALUES(127,'Veuillot',38,4,'A');
+INSERT INTO "boxes" VALUES(128,'Augustinus',38,3,'A');
 INSERT INTO "boxes" VALUES(129,'Grévisse',39,4,'C');
 INSERT INTO "boxes" VALUES(130,'Porte-drapeau',39,3,'C');
 INSERT INTO "boxes" VALUES(131,'Trône de fer',39,6,'C');
@@ -7761,15 +7766,19 @@ INSERT INTO "boxes" VALUES(135,'Notre-Dame',39,2,'C');
 INSERT INTO "boxes" VALUES(136,'Retz',39,1,'A');
 INSERT INTO "boxes" VALUES(137,'Moralis',39,3,'A');
 INSERT INTO "boxes" VALUES(138,'Crampon',39,1,'C');
-INSERT INTO "boxes" VALUES(139,'Venner',38,1,'A');
+INSERT INTO "boxes" VALUES(139,'Venner',38,2,'A');
 INSERT INTO "boxes" VALUES(140,'Shakespeare',39,5,'C');
 INSERT INTO "boxes" VALUES(141,'Bestiaire',39,7,'B');
 INSERT INTO "boxes" VALUES(142,'London',39,7,'C');
 INSERT INTO "boxes" VALUES(143,'Valiant',39,7,'A');
+INSERT INTO "boxes" VALUES(144,'Jansenius',38,1,'A');
 CREATE TABLE boxes_backup( id integer, name text, library integer, line integer, column text);
 INSERT INTO "boxes_backup" VALUES(128,'Augustinus',38,3,'A');
 INSERT INTO "boxes_backup" VALUES(140,'Shakespeare',39,1,'A');
 INSERT INTO "boxes_backup" VALUES(141,'Bestiaire',39,6,'B');
+INSERT INTO "boxes_backup" VALUES(127,'Veuillot',38,3,'A');
+INSERT INTO "boxes_backup" VALUES(128,'Augustinus',38,2,'A');
+INSERT INTO "boxes_backup" VALUES(139,'Venner',38,1,'A');
 CREATE TABLE `deleted_books` (
 	`id`	INTEGER PRIMARY KEY,
 	`book`	INTEGER
@@ -7899,13 +7908,14 @@ INSERT INTO "libraries" VALUES(34,'Perceuse','Au-dessus des bibliothèques de la
 INSERT INTO "libraries" VALUES(35,'Escalier','Au-dessus de la fenêtre de l''escalier',1,1);
 INSERT INTO "libraries" VALUES(36,'Jules Verne','Salle de jeux, sous l''escalier',1,1);
 INSERT INTO "libraries" VALUES(37,'Bible du bureau','Une étagère au-dessus du bureau de Mme',1,1);
-INSERT INTO "libraries" VALUES(38,'Escalier vert gauche','En montant vers l''orgue',3,1);
+INSERT INTO "libraries" VALUES(38,'Escalier vert gauche','En montant vers l''orgue',4,1);
 INSERT INTO "libraries" VALUES(39,'Espagnole','Salon, à droite de la vierge de Botticelli',7,3);
 CREATE TABLE libraries_backup( id integer, name text, place text, lines integer, columns integer);
 INSERT INTO "libraries_backup" VALUES(7,'Auguste','Bureau
 Première bibliothèque en partant de la gauche',3,1);
 INSERT INTO "libraries_backup" VALUES(6,'Caligula','Bureau
 Bibus de droite',3,1);
+INSERT INTO "libraries_backup" VALUES(38,'Escalier vert gauche','En montant vers l''orgue',3,1);
 CREATE TABLE publisher(
 id INTEGER PRIMARY KEY,
 name TEXT);
@@ -8551,5 +8561,6 @@ INSERT INTO "publisher" VALUES(639,'Sequoia');
 INSERT INTO "publisher" VALUES(640,'Cheminements');
 INSERT INTO "publisher" VALUES(641,'M. A.');
 INSERT INTO "publisher" VALUES(642,'Hora Decima');
+INSERT INTO "publisher" VALUES(643,'André Bonne');
 CREATE TABLE publisher_backup( id integer, name text);
 COMMIT;
