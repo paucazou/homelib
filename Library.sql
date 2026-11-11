@@ -1724,7 +1724,7 @@ INSERT INTO "books" VALUES(3,'Dictionnaire étymologique de la langue latine','2
 INSERT INTO "books" VALUES(4,'Le Grand Gaffiot','1|6',4,'Dictionnaire Latin-Français',133,1);
 INSERT INTO "books" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',116,1);
 INSERT INTO "books" VALUES(6,'Grammaire Latine','1|8',6,'',116,1);
-INSERT INTO "books" VALUES(7,'The Lord of the Rings','1|9',7,'50th Anniversary Edition',48,1);
+INSERT INTO "books" VALUES(7,'The Lord of the Rings','1|9',7,'50th Anniversary Edition',46,1);
 INSERT INTO "books" VALUES(8,'Les Châtiments','1|10',8,'Le titre ne figure pas sur la couverture.',130,1);
 INSERT INTO "books" VALUES(9,'Grammaire grecque','1|11',9,'',116,1);
 INSERT INTO "books" VALUES(10,'Le Russe','1|12',10,'',116,1);
@@ -5073,7 +5073,7 @@ Bilingue',66,2);
 INSERT INTO "books" VALUES(2449,'Correspondance','1|1240',177,'Un seul volume
 Bilingue',66,1);
 INSERT INTO "books" VALUES(2450,'Regifugium','1|1241',482,'La fuite du roi - Histoire et mythe',66,1);
-INSERT INTO "books" VALUES(2451,'L''Année liturgique','1|174',15,'15 volumes',46,15);
+INSERT INTO "books" VALUES(2451,'L''Année liturgique','1|174',15,'15 volumes',48,15);
 INSERT INTO "books" VALUES(2452,'Le Coup de maître de Satan','1|992',488,'Écône face à la persécution',88,1);
 INSERT INTO "books" VALUES(2453,'Comme un voleur dans la nuit','1|1242',166,'Enquête sur la mort de Jean-Paul Ier',88,1);
 INSERT INTO "books" VALUES(2454,'Pour la sainte Église romaine','1|1243',489,'Textes et documents',88,1);
@@ -5507,7 +5507,7 @@ INSERT INTO "books" VALUES(2792,'Oeuvres de Bossuet','1|286',562,'Incomplet
 
 10 : Controverses, ouvrages sur le quiétisme
 11 : Controverses et correspondances',48,6);
-INSERT INTO "books" VALUES(2793,'Dictionnaire français-latin','1|302',4,'',48,1);
+INSERT INTO "books" VALUES(2793,'Dictionnaire français-latin','1|302',4,'',46,1);
 INSERT INTO "books" VALUES(2794,'Lettres et opuscules','1|664',563,'Deuxième volume uniquement',48,1);
 INSERT INTO "books" VALUES(2795,'Correspondance diplomatique','1|664',508,'Deux volumes',48,2);
 INSERT INTO "books" VALUES(2796,'Historia pontificum romanorum','1|1409',564,'1620
@@ -6499,6 +6499,7 @@ INSERT INTO "books" VALUES(3530,'Théâtre de Tchekhov','1|1004',416,'',138,3);
 INSERT INTO "books" VALUES(3531,'Dictionnaire biographique des auteurs de tous les temps et de tous les pays','collective',166,'1980',142,4);
 INSERT INTO "books" VALUES(3532,'Histoire de la littérature anglaise','collective',4,'Tome 1 : 650-1660
 Tome 2 : 1660-1964',140,2);
+INSERT INTO "books" VALUES(3533,'Œuvres complètes de Bossuet','1|286',552,'1870',46,12);
 CREATE TABLE books_backup( id integer, name text, author text, publisher integer, more text, box integer, volumes INTEGER);
 INSERT INTO "books_backup" VALUES(305,'365 expressions latines expliquées','collective',126,'Livre contenant des erreurs',16,NULL);
 INSERT INTO "books_backup" VALUES(5,'Précis d''Ancien Français','1|7',5,'Morphologie et syntaxe',1,NULL);
@@ -7612,6 +7613,9 @@ INSERT INTO "books_backup" VALUES(2048,'Œuvres','1|1089',492,'Avec une préface
 INSERT INTO "books_backup" VALUES(2186,'Martyrologe Romain','collective',188,'Par des moines de Farnborough et de Solesmes. Édition de 1948.',46,NULL);
 INSERT INTO "books_backup" VALUES(1286,'Missel quotidien et vespéral','2|760|22',331,'Traductions bibliques du chanoine Osty',47,NULL);
 INSERT INTO "books_backup" VALUES(3521,'Dictionnaire des œuvres','collective',166,'De tous les temps et de tous les pays',143,6);
+INSERT INTO "books_backup" VALUES(2451,'L''Année liturgique','1|174',15,'15 volumes',46,15);
+INSERT INTO "books_backup" VALUES(7,'The Lord of the Rings','1|9',7,'50th Anniversary Edition',48,1);
+INSERT INTO "books_backup" VALUES(2793,'Dictionnaire français-latin','1|302',4,'',48,1);
 CREATE TABLE boxes (
 id INTEGER PRIMARY KEY,
 name TEXT,
